@@ -497,7 +497,8 @@
             try {
                 const data = await apiCall('domain_list', {});
                 console.log('API Response:', data);
-                domains = extractArray(data);
+                // API 返回: {"result": [...], "error": null}
+                domains = data.result || [];
                 if (domains.length === 0) {
                     showToast('未找到域名，请检查 API 权限', 'warning');
                 } else {
@@ -514,23 +515,6 @@
             }
         }
 
-        function extractArray(data) {
-            if (!data) return [];
-            if (Array.isArray(data)) return data;
-            if (typeof data === 'object') {
-                if (data.domains && Array.isArray(data.domains)) return data.domains;
-                if (data.list && Array.isArray(data.list)) return data.list;
-                if (data.records && Array.isArray(data.records)) return data.records;
-                if (data.data && Array.isArray(data.data)) return data.data;
-                if (data.result && Array.isArray(data.result)) return data.result;
-                if (data.items && Array.isArray(data.items)) return data.items;
-                const values = Object.values(data);
-                if (values.length > 0 && Array.isArray(values[0])) return values[0];
-                return values.filter(v => v !== null && v !== undefined);
-            }
-            return [];
-        }
-
         function setStatus(status, text) {
             const indicator = document.getElementById('statusIndicator');
             const statusText = document.getElementById('statusText');
@@ -545,15 +529,15 @@
             const container = document.getElementById('domainList');
             const searchTerm = (document.getElementById('domainSearch').value || '').toLowerCase();
             const filtered = domains.filter(d => {
-                const domainName = getDomainName(d);
-                return domainName && domainName.toLowerCase().includes(searchTerm);
+                const domainName = d.domain || '';
+                return domainName.toLowerCase().includes(searchTerm);
             });
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="text-center text-gray-500 py-8"><i class="fas fa-search text-2xl mb-2"></i><p class="text-sm">未找到匹配的域名</p></div>`;
                 return;
             }
             container.innerHTML = filtered.map((domain) => {
-                const domainName = getDomainName(domain);
+                const domainName = domain.domain || '';
                 const isActive = currentDomain === domainName;
                 return `
                     <div onclick="selectDomain('${domainName}')" class="record-row p-3 rounded-lg cursor-pointer flex justify-between items-center ${isActive ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-gray-700/50'}">
@@ -564,15 +548,6 @@
                         ${isActive ? '<i class="fas fa-chevron-right text-blue-500"></i>' : ''}
                     </div>`;
             }).join('');
-        }
-
-        function getDomainName(domain) {
-            if (domain === null || domain === undefined) return '';
-            if (typeof domain === 'string') return domain;
-            if (typeof domain === 'object') {
-                return domain.domain || domain.name || domain.zone || domain.domain_name || domain.title || domain.label || JSON.stringify(domain);
-            }
-            return String(domain);
         }
 
         function filterDomains() { renderDomains(); }
@@ -595,7 +570,7 @@
             try {
                 const data = await apiCall('record_list', { domain: currentDomain });
                 console.log('Records Response:', data);
-                records = extractArray(data);
+                records = data.result || [];
                 renderRecords();
             } catch (error) {
                 showToast(error.message, 'error');
@@ -614,7 +589,7 @@
             tbody.innerHTML = records.map(record => {
                 const type = (record.type || '').toUpperCase();
                 const typeClass = `type-${type.toLowerCase()}`;
-                const host = record.host || record.name || record.subdomain || '@';
+                const host = record.host || record.name || '@';
                 const value = record.value || record.content || record.address || record.data || record.target || '-';
                 const ttl = record.ttl || record.TTL || '-';
                 const id = record.id || record.record_id || 0;
