@@ -126,11 +126,21 @@
         .type-mx { background-color: rgba(249, 115, 22, 0.2); color: #fb923c; }
         .type-txt { background-color: rgba(107, 114, 128, 0.2); color: #9ca3af; }
         .type-ns { background-color: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .env-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
     </style>
+<base target="_blank">
 </head>
 <body class="min-h-screen">
     <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
-    
+
     <header class="card sticky top-0 z-40 border-b">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-3">
@@ -155,41 +165,60 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- API Configuration -->
         <section id="configSection" class="card rounded-xl p-6 mb-6 fade-in">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold flex items-center">
                     <i class="fas fa-key mr-2 text-yellow-500"></i>
                     API 配置
                 </h2>
-                <button onclick="saveConfig()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-save mr-2"></i>保存配置
-                </button>
+                <div class="flex items-center space-x-2">
+                    <span id="envApiKeyBadge" class="env-badge hidden"><i class="fas fa-shield-alt mr-1"></i>服务端已配置</span>
+                    <button onclick="saveConfig()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-save mr-2"></i>保存配置
+                    </button>
+                </div>
             </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium mb-2 text-gray-400">API Key</label>
+                    <label class="block text-sm font-medium mb-2 text-gray-400">
+                        API Key 
+                        <span id="apiKeySource" class="text-xs text-gray-500 ml-1">(前端配置)</span>
+                    </label>
                     <div class="relative">
                         <input type="password" id="apiKey" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入你的 API Key">
                         <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 text-gray-400 hover:text-white">
                             <i id="apiKeyIcon" class="fas fa-eye"></i>
                         </button>
                     </div>
+                    <p class="text-xs text-gray-500 mt-1">如果服务端已配置环境变量，此处留空即可</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-400">API 基础地址</label>
                     <input type="text" id="baseUrl" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" value="/api/client/dnsopenapi" readonly>
-                    <p class="text-xs text-gray-500 mt-1">通过 Edge Function 代理，无需修改</p>
+                    <p class="text-xs text-gray-500 mt-1">通过 Edge Function 代理，自动处理 CORS</p>
                 </div>
             </div>
-            <div class="mt-4 p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg flex items-start space-x-2">
-                <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
-                <div class="text-sm text-blue-200">
-                    <p><strong>部署说明：</strong>本页面通过 EdgeOne Pages Edge Function 代理 API 请求，自动处理 CORS 跨域问题。</p>
+
+            <div class="mt-4 p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg">
+                <div class="flex items-start space-x-2">
+                    <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                    <div class="text-sm text-blue-200">
+                        <p><strong>部署说明：</strong></p>
+                        <ul class="list-disc list-inside mt-1 space-y-1 text-xs">
+                            <li>支持在 EdgeOne Pages 环境变量中配置 <code>DNS_API_KEY</code> 和 <code>ACCESS_PASSWORD</code></li>
+                            <li>如果环境变量未配置 API Key，则需要在页面输入</li>
+                            <li>如果配置了 <code>ACCESS_PASSWORD</code>，访问页面需要输入密码</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </section>
 
+        <!-- Main Content -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Domain List -->
             <section class="lg:col-span-1">
                 <div class="card rounded-xl p-6 fade-in">
                     <div class="flex justify-between items-center mb-4">
@@ -201,10 +230,12 @@
                             <i class="fas fa-sync-alt" id="refreshDomains"></i>
                         </button>
                     </div>
+
                     <div class="relative mb-4">
                         <input type="text" id="domainSearch" class="input-field w-full px-4 py-2 pl-10 rounded-lg text-sm" placeholder="搜索域名..." oninput="filterDomains()">
                         <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
                     </div>
+
                     <div id="domainList" class="space-y-2 max-h-96 overflow-y-auto">
                         <div class="text-center text-gray-500 py-8">
                             <i class="fas fa-inbox text-3xl mb-2"></i>
@@ -214,6 +245,7 @@
                 </div>
             </section>
 
+            <!-- Records Management -->
             <section class="lg:col-span-2">
                 <div class="card rounded-xl p-6 fade-in">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-2 sm:space-y-0">
@@ -233,6 +265,8 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- Records Table -->
                     <div class="overflow-x-auto">
                         <table class="w-full text-left">
                             <thead>
@@ -259,6 +293,7 @@
         </div>
     </main>
 
+    <!-- Create/Edit Record Modal -->
     <div id="recordModal" class="fixed inset-0 z-50 hidden">
         <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
@@ -266,14 +301,18 @@
                 <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                     <i class="fas fa-times"></i>
                 </button>
+
                 <h3 id="modalTitle" class="text-xl font-bold mb-6">添加解析记录</h3>
+
                 <form id="recordForm" onsubmit="handleRecordSubmit(event)">
                     <input type="hidden" id="recordId">
+
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium mb-2 text-gray-400">域名</label>
                             <input type="text" id="formDomain" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" readonly>
                         </div>
+
                         <div>
                             <label class="block text-sm font-medium mb-2 text-gray-400">主机记录 <span class="text-red-500">*</span></label>
                             <div class="flex items-center">
@@ -282,6 +321,7 @@
                             </div>
                             <p class="text-xs text-gray-500 mt-1">使用 @ 表示根域名</p>
                         </div>
+
                         <div>
                             <label class="block text-sm font-medium mb-2 text-gray-400">记录类型 <span class="text-red-500">*</span></label>
                             <select id="formType" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
@@ -293,20 +333,24 @@
                                 <option value="NS">NS - 名称服务器</option>
                             </select>
                         </div>
+
                         <div>
                             <label class="block text-sm font-medium mb-2 text-gray-400">记录值 <span class="text-red-500">*</span></label>
                             <input type="text" id="formValue" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1.2.3.4" required>
                         </div>
+
                         <div>
                             <label class="block text-sm font-medium mb-2 text-gray-400">TTL (秒)</label>
                             <input type="number" id="formTTL" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="600" min="60" step="1">
                             <p class="text-xs text-gray-500 mt-1">默认 600 秒</p>
                         </div>
+
                         <div>
                             <label class="block text-sm font-medium mb-2 text-gray-400">优先级 (MX 记录)</label>
                             <input type="number" id="formPriority" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="10" min="0" max="65535">
                         </div>
                     </div>
+
                     <div class="mt-6 flex space-x-3">
                         <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
                         <button type="submit" id="submitBtn" class="flex-1 btn-primary px-4 py-2 rounded-lg font-medium transition">
@@ -318,6 +362,7 @@
         </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="fixed inset-0 z-50 hidden">
         <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeDeleteModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
@@ -341,11 +386,31 @@
         let records = [];
         let deleteTargetId = null;
         let isEditing = false;
+        let hasServerApiKey = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             loadConfig();
             checkTheme();
+            checkServerConfig();
         });
+
+        async function checkServerConfig() {
+            try {
+                const response = await fetch('/api/client/dnsopenapi/domain_list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                });
+                if (response.status !== 401 && response.status !== 403) {
+                    hasServerApiKey = true;
+                    document.getElementById('envApiKeyBadge').classList.remove('hidden');
+                    document.getElementById('apiKeySource').textContent = '(服务端已配置，可选)';
+                    document.getElementById('apiKey').placeholder = '服务端已配置 API Key（可选覆盖）';
+                }
+            } catch (e) {
+                console.log('Server config check failed:', e);
+            }
+        }
 
         function checkTheme() {
             const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -369,11 +434,15 @@
 
         function saveConfig() {
             const apiKey = document.getElementById('apiKey').value.trim();
-            if (!apiKey) {
+            if (!apiKey && !hasServerApiKey) {
                 showToast('请输入 API Key', 'error');
                 return;
             }
-            localStorage.setItem('dns_api_key', apiKey);
+            if (apiKey) {
+                localStorage.setItem('dns_api_key', apiKey);
+            } else {
+                localStorage.removeItem('dns_api_key');
+            }
             showToast('配置已保存', 'success');
             loadDomains();
         }
@@ -396,19 +465,18 @@
 
         async function apiCall(endpoint, data = {}) {
             const apiKey = localStorage.getItem('dns_api_key');
-            if (!apiKey) throw new Error('请先配置 API Key');
-
+            const headers = { 'Content-Type': 'application/json' };
+            if (apiKey) {
+                headers['Authorization'] = 'Basic ' + btoa('client:' + apiKey);
+            }
             try {
-                const response = await fetch(`/api/client/dnsopenapi/${endpoint}`, {
+                const response = await fetch('/api/client/dnsopenapi/' + endpoint, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Basic ' + btoa('client:' + apiKey)
-                    },
+                    headers: headers,
                     body: JSON.stringify(data)
                 });
-
                 if (response.status === 429) throw new Error('请求过于频繁，请稍后再试 (429)');
+                if (response.status === 401 || response.status === 403) throw new Error('认证失败，请检查 API Key 是否正确');
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(`HTTP ${response.status}: ${errorText}`);
@@ -416,7 +484,7 @@
                 return await response.json();
             } catch (error) {
                 if (error.message.includes('Failed to fetch')) {
-                    throw new Error('请求失败。请检查网络连接或 Edge Function 是否正常工作。错误: ' + error.message);
+                    throw new Error('请求失败。请检查：1. Edge Function 是否正确部署 2. 环境变量是否配置 3. 网络连接是否正常。错误: ' + error.message);
                 }
                 throw error;
             }
@@ -428,26 +496,37 @@
             setStatus('loading', '连接中...');
             try {
                 const data = await apiCall('domain_list', {});
+                console.log('API Response:', data);
                 domains = extractArray(data);
+                if (domains.length === 0) {
+                    showToast('未找到域名，请检查 API 权限', 'warning');
+                } else {
+                    showToast(`已加载 ${domains.length} 个域名`, 'success');
+                }
                 renderDomains();
-                showToast(`已加载 ${domains.length} 个域名`, 'success');
                 setStatus('ready', '就绪');
             } catch (error) {
                 showToast(error.message, 'error');
                 setStatus('error', '连接失败');
+                console.error('Load domains error:', error);
             } finally {
                 btn.classList.remove('fa-spin');
             }
         }
 
         function extractArray(data) {
+            if (!data) return [];
             if (Array.isArray(data)) return data;
-            if (data && typeof data === 'object') {
-                if (data.domains) return data.domains;
-                if (data.list) return data.list;
-                if (data.records) return data.records;
-                if (data.data) return data.data;
-                return Object.values(data);
+            if (typeof data === 'object') {
+                if (data.domains && Array.isArray(data.domains)) return data.domains;
+                if (data.list && Array.isArray(data.list)) return data.list;
+                if (data.records && Array.isArray(data.records)) return data.records;
+                if (data.data && Array.isArray(data.data)) return data.data;
+                if (data.result && Array.isArray(data.result)) return data.result;
+                if (data.items && Array.isArray(data.items)) return data.items;
+                const values = Object.values(data);
+                if (values.length > 0 && Array.isArray(values[0])) return values[0];
+                return values.filter(v => v !== null && v !== undefined);
             }
             return [];
         }
@@ -457,26 +536,23 @@
             const statusText = document.getElementById('statusText');
             statusText.textContent = text;
             indicator.className = 'w-2 h-2 rounded-full';
-            if (status === 'ready') {
-                indicator.classList.add('bg-green-500', 'animate-pulse');
-            } else if (status === 'loading') {
-                indicator.classList.add('bg-yellow-500', 'animate-pulse');
-            } else if (status === 'error') {
-                indicator.classList.add('bg-red-500');
-            }
+            if (status === 'ready') indicator.classList.add('bg-green-500', 'animate-pulse');
+            else if (status === 'loading') indicator.classList.add('bg-yellow-500', 'animate-pulse');
+            else if (status === 'error') indicator.classList.add('bg-red-500');
         }
 
         function renderDomains() {
             const container = document.getElementById('domainList');
-            const searchTerm = document.getElementById('domainSearch').value.toLowerCase();
-            const filtered = domains.filter(d => getDomainName(d).toLowerCase().includes(searchTerm));
-            
+            const searchTerm = (document.getElementById('domainSearch').value || '').toLowerCase();
+            const filtered = domains.filter(d => {
+                const domainName = getDomainName(d);
+                return domainName && domainName.toLowerCase().includes(searchTerm);
+            });
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="text-center text-gray-500 py-8"><i class="fas fa-search text-2xl mb-2"></i><p class="text-sm">未找到匹配的域名</p></div>`;
                 return;
             }
-            
-            container.innerHTML = filtered.map(domain => {
+            container.innerHTML = filtered.map((domain) => {
                 const domainName = getDomainName(domain);
                 const isActive = currentDomain === domainName;
                 return `
@@ -491,8 +567,12 @@
         }
 
         function getDomainName(domain) {
+            if (domain === null || domain === undefined) return '';
             if (typeof domain === 'string') return domain;
-            return domain.domain || domain.name || domain.zone || JSON.stringify(domain);
+            if (typeof domain === 'object') {
+                return domain.domain || domain.name || domain.zone || domain.domain_name || domain.title || domain.label || JSON.stringify(domain);
+            }
+            return String(domain);
         }
 
         function filterDomains() { renderDomains(); }
@@ -514,10 +594,12 @@
             btn.classList.add('fa-spin');
             try {
                 const data = await apiCall('record_list', { domain: currentDomain });
+                console.log('Records Response:', data);
                 records = extractArray(data);
                 renderRecords();
             } catch (error) {
                 showToast(error.message, 'error');
+                console.error('Load records error:', error);
             } finally {
                 btn.classList.remove('fa-spin');
             }
@@ -532,14 +614,14 @@
             tbody.innerHTML = records.map(record => {
                 const type = (record.type || '').toUpperCase();
                 const typeClass = `type-${type.toLowerCase()}`;
-                const host = record.host || record.name || '@';
-                const value = record.value || record.content || record.address || '-';
-                const ttl = record.ttl || '-';
+                const host = record.host || record.name || record.subdomain || '@';
+                const value = record.value || record.content || record.address || record.data || record.target || '-';
+                const ttl = record.ttl || record.TTL || '-';
                 const id = record.id || record.record_id || 0;
                 return `
                     <tr class="record-row border-b border-gray-700/50">
                         <td class="py-4 pr-4 font-medium">${host}</td>
-                        <td class="py-4 pr-4"><span class="type-badge ${typeClass}">${type}</span></td>
+                        <td class="py-4 pr-4"><span class="type-badge ${typeClass}">${type || '?'}</span></td>
                         <td class="py-4 pr-4 text-sm text-gray-300 max-w-xs truncate" title="${value}">${value}</td>
                         <td class="py-4 pr-4 text-sm text-gray-400">${ttl}</td>
                         <td class="py-4 text-right">
@@ -574,11 +656,11 @@
             document.getElementById('recordId').value = id;
             document.getElementById('formDomain').value = currentDomain;
             document.getElementById('formDomainSuffix').textContent = currentDomain;
-            document.getElementById('formHost').value = record.host || record.name || '';
-            document.getElementById('formType').value = record.type;
-            document.getElementById('formValue').value = record.value || record.content || record.address || '';
-            document.getElementById('formTTL').value = record.ttl || 600;
-            document.getElementById('formPriority').value = record.priority || record.mx_priority || '';
+            document.getElementById('formHost').value = record.host || record.name || record.subdomain || '';
+            document.getElementById('formType').value = (record.type || 'A').toUpperCase();
+            document.getElementById('formValue').value = record.value || record.content || record.address || record.data || record.target || '';
+            document.getElementById('formTTL').value = record.ttl || record.TTL || 600;
+            document.getElementById('formPriority').value = record.priority || record.mx_priority || record.Priority || '';
             document.getElementById('recordModal').classList.remove('hidden');
         }
 
@@ -593,12 +675,10 @@
             const value = document.getElementById('formValue').value;
             const ttl = parseInt(document.getElementById('formTTL').value) || 600;
             const priority = document.getElementById('formPriority').value;
-            
             const submitBtn = document.getElementById('submitBtn');
             const originalText = document.getElementById('submitText').textContent;
             submitBtn.disabled = true;
             document.getElementById('submitText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
-            
             try {
                 if (isEditing && id) {
                     const data = { domain, id: parseInt(id), value, ttl };
