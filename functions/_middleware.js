@@ -1,17 +1,24 @@
 export async function onRequest(context) {
     const { request, env } = context;
-    
+
+    // 检查是否设置了访问密码环境变量
     const accessPassword = env.ACCESS_PASSWORD;
-    
+
+    // 如果访问的是 API 路径，跳过密码验证（API Key 已经提供认证）
+    const url = new URL(request.url);
+    if (url.pathname.startsWith('/api/')) {
+        return await context.next();
+    }
+
     if (accessPassword) {
-        const url = new URL(request.url);
+        // 从 URL 查询参数或 Cookie 中获取密码
         const urlPassword = url.searchParams.get('password');
         const cookie = request.headers.get('cookie') || '';
         const cookieMatch = cookie.match(/access_password=([^;]+)/);
         const cookiePassword = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
-        
+
         const providedPassword = urlPassword || cookiePassword;
-        
+
         if (providedPassword !== accessPassword) {
             return new Response(`<!DOCTYPE html>
 <html lang="zh-CN">
@@ -72,8 +79,10 @@ export async function onRequest(context) {
             border-radius: 8px;
             font-size: 16px;
             cursor: pointer;
+            transition: background 0.2s;
         }
         button:hover { background: #2563eb; }
+        .error { color: #ef4444; font-size: 14px; margin-top: 12px; display: none; }
     </style>
 </head>
 <body>
@@ -87,6 +96,7 @@ export async function onRequest(context) {
             <input type="password" id="password" placeholder="访问密码" autocomplete="off" autofocus>
             <button type="submit">进入系统</button>
         </form>
+        <div class="error" id="error">密码错误，请重试</div>
     </div>
     <script>
         function handleSubmit(e) {
@@ -94,7 +104,10 @@ export async function onRequest(context) {
             const password = document.getElementById('password').value;
             if (!password) return;
             document.cookie = 'access_password=' + encodeURIComponent(password) + '; path=/; max-age=86400; SameSite=Lax';
-            window.location.reload();
+            window.location.href = window.location.pathname;
+        }
+        if (window.location.search.includes('error=auth')) {
+            document.getElementById('error').style.display = 'block';
         }
     </script>
 </body>
@@ -104,6 +117,7 @@ export async function onRequest(context) {
             });
         }
     }
-    
+
+    // 继续处理请求
     return await context.next();
 }
