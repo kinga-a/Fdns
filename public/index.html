@@ -135,7 +135,7 @@
             background-color: rgba(16, 185, 129, 0.2);
             color: #34d399;
         }
-        /* 模态框滚动修复 - 简化结构，避免卡顿 */
+        /* 模态框滚动修复 */
         .modal-scroll {
             max-height: 85vh;
             overflow-y: auto;
@@ -154,6 +154,7 @@
     </style>
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body class="min-h-screen">
     <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
@@ -170,9 +171,6 @@
                 </div>
             </div>
             <div class="flex items-center space-x-4">
-                <button onclick="logout()" class="p-2 rounded-lg hover:bg-red-900/30 hover:text-red-400 text-gray-400 transition" title="退出登录">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
                 <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-700 transition">
                     <i id="themeIcon" class="fas fa-sun"></i>
                 </button>
@@ -193,13 +191,12 @@
                 </h2>
                 <div class="flex items-center space-x-2">
                     <span id="envApiKeyBadge" class="env-badge hidden"><i class="fas fa-shield-alt mr-1"></i>服务端已配置</span>
-                    <button onclick="toggleConfig()" id="configToggleBtn" class="p-2 rounded-lg hover:bg-gray-700 transition" title="展开/收起">
-                        <i id="configToggleIcon" class="fas fa-chevron-down transition-transform duration-200"></i>
+                    <button onclick="saveConfig()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-save mr-2"></i>保存配置
                     </button>
                 </div>
             </div>
 
-            <div id="configContent" class="hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-400">
@@ -233,12 +230,6 @@
                         </ul>
                     </div>
                 </div>
-            </div>
-            <div class="mt-4 flex justify-end">
-                <button onclick="saveConfig()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-save mr-2"></i>保存配置
-                </button>
-            </div>
             </div>
         </section>
 
@@ -315,73 +306,71 @@
         </div>
     </main>
 
-    <!-- 修复后的模态框 - 整体可滚动，按钮始终可见 -->
-    <div id="recordModal" class="fixed inset-0 z-50 hidden">
+    <!-- 修复后的模态框 - 添加滚动支持 -->
+    <div id="recordModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
         <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeModal()"></div>
-        <div class="relative min-h-screen flex items-start justify-center p-4 pt-10">
-            <div class="card rounded-xl shadow-2xl w-full max-w-md relative fade-in modal-scroll">
-                <div class="p-6">
-                    <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
-                        <i class="fas fa-times"></i>
-                    </button>
+        <div class="relative min-h-screen flex items-start justify-center p-4 pt-10 pb-10">
+            <div class="card rounded-xl shadow-2xl w-full max-w-md p-6 relative fade-in modal-scroll my-8">
+                <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
+                    <i class="fas fa-times"></i>
+                </button>
 
-                    <h3 id="modalTitle" class="text-xl font-bold mb-6">添加解析记录</h3>
+                <h3 id="modalTitle" class="text-xl font-bold mb-6">添加解析记录</h3>
 
-                    <form id="recordForm" onsubmit="handleRecordSubmit(event)">
-                        <input type="hidden" id="recordId">
+                <form id="recordForm" onsubmit="handleRecordSubmit(event)">
+                    <input type="hidden" id="recordId">
 
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium mb-2 text-gray-400">域名</label>
-                                <input type="text" id="formDomain" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" readonly>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-2 text-gray-400">主机记录 <span class="text-red-500">*</span></label>
-                                <div class="flex items-center">
-                                    <input type="text" id="formHost" class="input-field w-full px-4 py-2 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="www" required>
-                                    <span class="px-3 py-2 bg-gray-700 text-gray-400 rounded-r-lg border border-l-0 border-gray-600">.<span id="formDomainSuffix">example.com</span></span>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">使用 @ 表示根域名</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-2 text-gray-400">记录类型 <span class="text-red-500">*</span></label>
-                                <select id="formType" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                                    <option value="A">A - IPv4 地址</option>
-                                    <option value="AAAA">AAAA - IPv6 地址</option>
-                                    <option value="CNAME">CNAME - 别名记录</option>
-                                    <option value="MX">MX - 邮件交换</option>
-                                    <option value="TXT">TXT - 文本记录</option>
-                                    <option value="NS">NS - 名称服务器</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-2 text-gray-400">记录值 <span class="text-red-500">*</span></label>
-                                <input type="text" id="formValue" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1.2.3.4" required>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-2 text-gray-400">TTL (秒)</label>
-                                <input type="number" id="formTTL" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="600" min="60" step="1">
-                                <p class="text-xs text-gray-500 mt-1">默认 600 秒</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-2 text-gray-400">优先级 (MX 记录)</label>
-                                <input type="number" id="formPriority" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="10" min="0" max="65535">
-                            </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-400">域名</label>
+                            <input type="text" id="formDomain" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" readonly>
                         </div>
 
-                        <div class="flex space-x-3 mt-6 pt-4 border-t border-gray-700/50">
-                            <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
-                            <button type="submit" id="submitBtn" class="flex-1 btn-primary px-4 py-2 rounded-lg font-medium transition">
-                                <span id="submitText">确认添加</span>
-                            </button>
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-400">主机记录 <span class="text-red-500">*</span></label>
+                            <div class="flex items-center">
+                                <input type="text" id="formHost" class="input-field w-full px-4 py-2 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="www" required>
+                                <span class="px-3 py-2 bg-gray-700 text-gray-400 rounded-r-lg border border-l-0 border-gray-600">.<span id="formDomainSuffix">example.com</span></span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">使用 @ 表示根域名</p>
                         </div>
-                    </form>
-                </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-400">记录类型 <span class="text-red-500">*</span></label>
+                            <select id="formType" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                <option value="A">A - IPv4 地址</option>
+                                <option value="AAAA">AAAA - IPv6 地址</option>
+                                <option value="CNAME">CNAME - 别名记录</option>
+                                <option value="MX">MX - 邮件交换</option>
+                                <option value="TXT">TXT - 文本记录</option>
+                                <option value="NS">NS - 名称服务器</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-400">记录值 <span class="text-red-500">*</span></label>
+                            <input type="text" id="formValue" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1.2.3.4" required>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-400">TTL (秒)</label>
+                            <input type="number" id="formTTL" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="600" min="60" step="1">
+                            <p class="text-xs text-gray-500 mt-1">默认 600 秒</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-2 text-gray-400">优先级 (MX 记录)</label>
+                            <input type="number" id="formPriority" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="10" min="0" max="65535">
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex space-x-3">
+                        <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
+                        <button type="submit" id="submitBtn" class="flex-1 btn-primary px-4 py-2 rounded-lg font-medium transition">
+                            <span id="submitText">确认添加</span>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -436,35 +425,28 @@
         }
 
         function checkTheme() {
-            // 优先从 localStorage 读取，兼容旧用户
-            let savedTheme = localStorage.getItem('theme');
-            // 如果没有 localStorage，尝试从 Cookie 读取（从密码页同步过来）
-            if (!savedTheme) {
-                const match = document.cookie.match(/theme=([^;]+)/);
-                if (match) savedTheme = decodeURIComponent(match[1]);
-            }
-            savedTheme = savedTheme || 'dark';
+            const savedTheme = localStorage.getItem('theme') || 'dark';
             if (savedTheme === 'light') {
                 document.body.classList.add('light-mode');
                 document.getElementById('themeIcon').classList.replace('fa-sun', 'fa-moon');
             }
-            // 同步设置 Cookie
+            // 设置 theme Cookie
             document.cookie = 'theme=' + savedTheme + '; path=/; max-age=31536000; SameSite=Lax';
         }
 
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
             const icon = document.getElementById('themeIcon');
-            let theme;
+            let theme = 'dark';
             if (document.body.classList.contains('light-mode')) {
                 icon.classList.replace('fa-sun', 'fa-moon');
+                localStorage.setItem('theme', 'light');
                 theme = 'light';
             } else {
                 icon.classList.replace('fa-moon', 'fa-sun');
-                theme = 'dark';
+                localStorage.setItem('theme', 'dark');
             }
-            localStorage.setItem('theme', theme);
-            // 同步到 Cookie，密码页面可读取
+            // 设置 theme Cookie，让密码验证页面也能读取
             document.cookie = 'theme=' + theme + '; path=/; max-age=31536000; SameSite=Lax';
         }
 
@@ -656,9 +638,10 @@
             document.getElementById('formTTL').value = '600';
             document.getElementById('recordModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            // 确保内容区域滚动到顶部
+            // 确保模态框滚动到顶部
             setTimeout(() => {
-                // 模态框整体可滚动，无需单独设置
+                const modalScroll = document.querySelector('.modal-scroll');
+                if (modalScroll) modalScroll.scrollTop = 0;
             }, 10);
         }
 
@@ -678,17 +661,19 @@
             document.getElementById('formPriority').value = record.priority || record.mx_priority || record.Priority || '';
             document.getElementById('recordModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            // 确保内容区域滚动到顶部
+            // 确保模态框滚动到顶部
             setTimeout(() => {
-                // 模态框整体可滚动，无需单独设置
+                const modalScroll = document.querySelector('.modal-scroll');
+                if (modalScroll) modalScroll.scrollTop = 0;
             }, 10);
         }
 
         function closeModal() { 
             document.getElementById('recordModal').classList.add('hidden'); 
             document.body.style.overflow = '';
-            // 重置表单滚动位置
-            // 模态框整体可滚动，无需单独设置
+            // 重置模态框滚动位置
+            const modalScroll = document.querySelector('.modal-scroll');
+            if (modalScroll) modalScroll.scrollTop = 0;
         }
 
         async function handleRecordSubmit(e) {
@@ -763,30 +748,10 @@
             }, 3000);
         }
 
-        function toggleConfig() {
-            const content = document.getElementById('configContent');
-            const icon = document.getElementById('configToggleIcon');
-            if (content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                icon.style.transform = 'rotate(180deg)';
-            } else {
-                content.classList.add('hidden');
-                icon.style.transform = 'rotate(0deg)';
-            }
-        }
-
-        function logout() {
-            // 清除会话 Cookie
-            document.cookie = 'dns_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-            // 清除 localStorage 中的 API key（可选）
-            localStorage.removeItem('dns_api_key');
-            // 刷新页面，回到密码验证
-            window.location.reload();
-        }
-
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') { closeModal(); closeDeleteModal(); }
         });
     </script>
 </body>
 </html>
+
