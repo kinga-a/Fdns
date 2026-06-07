@@ -1,10 +1,4 @@
 {
   "outputDirectory": "public",
-  "buildCommand": "",
-  "rewrites": [
-    {
-      "source": "/index.html",
-      "destination": "/"
-    }
-  ]
+  "buildCommand": ""
 }
