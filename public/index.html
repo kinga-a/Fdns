@@ -135,13 +135,11 @@
             background-color: rgba(16, 185, 129, 0.2);
             color: #34d399;
         }
-        /* 模态框滚动修复 */
+        /* 模态框滚动修复 - 简化结构，避免卡顿 */
         .modal-scroll {
-            max-height: 90vh;
+            max-height: 85vh;
             overflow-y: auto;
             overflow-x: hidden;
-            display: flex;
-            flex-direction: column;
         }
         .modal-scroll::-webkit-scrollbar {
             width: 6px;
@@ -152,34 +150,6 @@
         .modal-scroll::-webkit-scrollbar-thumb {
             background: var(--bg-secondary);
             border-radius: 3px;
-        }
-        .modal-form-content {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding-right: 4px;
-            max-height: calc(90vh - 140px);
-        }
-        .modal-form-content::-webkit-scrollbar {
-            width: 6px;
-        }
-        .modal-form-content::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .modal-form-content::-webkit-scrollbar-thumb {
-            background: var(--bg-secondary);
-            border-radius: 3px;
-        }
-        .modal-footer {
-            position: sticky;
-            bottom: 0;
-            background: inherit;
-            padding-top: 16px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            margin-top: 8px;
-        }
-        .light-mode .modal-footer {
-            border-top: 1px solid #e2e8f0;
         }
     </style>
 <base target="_blank">
@@ -200,6 +170,9 @@
                 </div>
             </div>
             <div class="flex items-center space-x-4">
+                <button onclick="logout()" class="p-2 rounded-lg hover:bg-red-900/30 hover:text-red-400 text-gray-400 transition" title="退出登录">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
                 <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-700 transition">
                     <i id="themeIcon" class="fas fa-sun"></i>
                 </button>
@@ -220,12 +193,13 @@
                 </h2>
                 <div class="flex items-center space-x-2">
                     <span id="envApiKeyBadge" class="env-badge hidden"><i class="fas fa-shield-alt mr-1"></i>服务端已配置</span>
-                    <button onclick="saveConfig()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium transition">
-                        <i class="fas fa-save mr-2"></i>保存配置
+                    <button onclick="toggleConfig()" id="configToggleBtn" class="p-2 rounded-lg hover:bg-gray-700 transition" title="展开/收起">
+                        <i id="configToggleIcon" class="fas fa-chevron-down transition-transform duration-200"></i>
                     </button>
                 </div>
             </div>
 
+            <div id="configContent" class="hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-400">
@@ -259,6 +233,12 @@
                         </ul>
                     </div>
                 </div>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button onclick="saveConfig()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-save mr-2"></i>保存配置
+                </button>
+            </div>
             </div>
         </section>
 
@@ -335,21 +315,21 @@
         </div>
     </main>
 
-    <!-- 修复后的模态框 - 添加滚动支持 -->
+    <!-- 修复后的模态框 - 整体可滚动，按钮始终可见 -->
     <div id="recordModal" class="fixed inset-0 z-50 hidden">
         <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeModal()"></div>
         <div class="relative min-h-screen flex items-start justify-center p-4 pt-10">
-            <div class="card rounded-xl shadow-2xl w-full max-w-md p-6 relative fade-in modal-scroll">
-                <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
-                    <i class="fas fa-times"></i>
-                </button>
+            <div class="card rounded-xl shadow-2xl w-full max-w-md relative fade-in modal-scroll">
+                <div class="p-6">
+                    <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
+                        <i class="fas fa-times"></i>
+                    </button>
 
-                <h3 id="modalTitle" class="text-xl font-bold mb-6">添加解析记录</h3>
+                    <h3 id="modalTitle" class="text-xl font-bold mb-6">添加解析记录</h3>
 
-                <form id="recordForm" onsubmit="handleRecordSubmit(event)">
-                    <input type="hidden" id="recordId">
+                    <form id="recordForm" onsubmit="handleRecordSubmit(event)">
+                        <input type="hidden" id="recordId">
 
-                    <div class="modal-form-content">
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium mb-2 text-gray-400">域名</label>
@@ -393,15 +373,15 @@
                                 <input type="number" id="formPriority" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="10" min="0" max="65535">
                             </div>
                         </div>
-                    </div>
 
-                    <div class="modal-footer flex space-x-3">
-                        <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
-                        <button type="submit" id="submitBtn" class="flex-1 btn-primary px-4 py-2 rounded-lg font-medium transition">
-                            <span id="submitText">确认添加</span>
-                        </button>
-                    </div>
-                </form>
+                        <div class="flex space-x-3 mt-6 pt-4 border-t border-gray-700/50">
+                            <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
+                            <button type="submit" id="submitBtn" class="flex-1 btn-primary px-4 py-2 rounded-lg font-medium transition">
+                                <span id="submitText">确认添加</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -456,28 +436,35 @@
         }
 
         function checkTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
+            // 优先从 localStorage 读取，兼容旧用户
+            let savedTheme = localStorage.getItem('theme');
+            // 如果没有 localStorage，尝试从 Cookie 读取（从密码页同步过来）
+            if (!savedTheme) {
+                const match = document.cookie.match(/theme=([^;]+)/);
+                if (match) savedTheme = decodeURIComponent(match[1]);
+            }
+            savedTheme = savedTheme || 'dark';
             if (savedTheme === 'light') {
                 document.body.classList.add('light-mode');
                 document.getElementById('themeIcon').classList.replace('fa-sun', 'fa-moon');
             }
-            // 设置 theme Cookie
+            // 同步设置 Cookie
             document.cookie = 'theme=' + savedTheme + '; path=/; max-age=31536000; SameSite=Lax';
         }
 
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
             const icon = document.getElementById('themeIcon');
-            let theme = 'dark';
+            let theme;
             if (document.body.classList.contains('light-mode')) {
                 icon.classList.replace('fa-sun', 'fa-moon');
-                localStorage.setItem('theme', 'light');
                 theme = 'light';
             } else {
                 icon.classList.replace('fa-moon', 'fa-sun');
-                localStorage.setItem('theme', 'dark');
+                theme = 'dark';
             }
-            // 设置 theme Cookie，让密码验证页面也能读取
+            localStorage.setItem('theme', theme);
+            // 同步到 Cookie，密码页面可读取
             document.cookie = 'theme=' + theme + '; path=/; max-age=31536000; SameSite=Lax';
         }
 
@@ -671,8 +658,7 @@
             document.body.style.overflow = 'hidden';
             // 确保内容区域滚动到顶部
             setTimeout(() => {
-                const modalContent = document.querySelector('.modal-form-content');
-                if (modalContent) modalContent.scrollTop = 0;
+                // 模态框整体可滚动，无需单独设置
             }, 10);
         }
 
@@ -694,8 +680,7 @@
             document.body.style.overflow = 'hidden';
             // 确保内容区域滚动到顶部
             setTimeout(() => {
-                const modalContent = document.querySelector('.modal-form-content');
-                if (modalContent) modalContent.scrollTop = 0;
+                // 模态框整体可滚动，无需单独设置
             }, 10);
         }
 
@@ -703,8 +688,7 @@
             document.getElementById('recordModal').classList.add('hidden'); 
             document.body.style.overflow = '';
             // 重置表单滚动位置
-            const modalContent = document.querySelector('.modal-form-content');
-            if (modalContent) modalContent.scrollTop = 0;
+            // 模态框整体可滚动，无需单独设置
         }
 
         async function handleRecordSubmit(e) {
@@ -777,6 +761,27 @@
                 toast.style.transition = 'all 0.3s ease-out';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
+        }
+
+        function toggleConfig() {
+            const content = document.getElementById('configContent');
+            const icon = document.getElementById('configToggleIcon');
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                content.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function logout() {
+            // 清除会话 Cookie
+            document.cookie = 'dns_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+            // 清除 localStorage 中的 API key（可选）
+            localStorage.removeItem('dns_api_key');
+            // 刷新页面，回到密码验证
+            window.location.reload();
         }
 
         document.addEventListener('keydown', (e) => {
