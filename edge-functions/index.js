@@ -2,6 +2,11 @@ export async function onRequest(context) {
     const { request, env } = context;
     const url = new URL(request.url);
 
+    // 读取主题 Cookie
+    const cookie = request.headers.get('cookie') || '';
+    const themeMatch = cookie.match(/theme=([^;]+)/);
+    const theme = themeMatch ? decodeURIComponent(themeMatch[1]) : 'dark';
+
     // 检查是否需要密码验证
     const accessPassword = env.ACCESS_PASSWORD;
 
@@ -62,6 +67,11 @@ const passwordHTML = `<!DOCTYPE html>
             align-items: center;
             justify-content: center;
             padding: 20px;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+        body.light-mode {
+            background: #f8fafc;
+            color: #0f172a;
         }
         .container {
             background: #1e293b;
@@ -71,6 +81,12 @@ const passwordHTML = `<!DOCTYPE html>
             width: 100%;
             max-width: 400px;
             text-align: center;
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+        body.light-mode .container {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .icon {
             width: 64px;
@@ -85,6 +101,7 @@ const passwordHTML = `<!DOCTYPE html>
         .icon svg { width: 32px; height: 32px; fill: white; }
         h1 { font-size: 24px; margin-bottom: 8px; }
         p { color: #94a3b8; margin-bottom: 24px; font-size: 14px; }
+        body.light-mode p { color: #64748b; }
         input {
             width: 100%;
             padding: 12px 16px;
@@ -95,6 +112,12 @@ const passwordHTML = `<!DOCTYPE html>
             font-size: 16px;
             margin-bottom: 16px;
             outline: none;
+            transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+        body.light-mode input {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #0f172a;
         }
         input:focus { border-color: #3b82f6; }
         button {
@@ -115,9 +138,40 @@ const passwordHTML = `<!DOCTYPE html>
             margin-top: 12px; 
             display: none; 
         }
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #f1f5f9;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+        body.light-mode .theme-toggle {
+            background: rgba(0,0,0,0.05);
+            border: 1px solid #cbd5e1;
+            color: #0f172a;
+        }
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        body.light-mode .theme-toggle:hover {
+            background: rgba(0,0,0,0.1);
+        }
     </style>
 </head>
-<body>
+<body class="${theme === 'light' ? 'light-mode' : ''}">
+    <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+        ${theme === 'light' ? '☀️' : '🌙'}
+    </button>
     <div class="container">
         <div class="icon">
             <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
@@ -131,6 +185,15 @@ const passwordHTML = `<!DOCTYPE html>
         <div class="error" id="error">密码错误，请重试</div>
     </div>
     <script>
+        function toggleTheme() {
+            const body = document.body;
+            const isLight = body.classList.toggle('light-mode');
+            const btn = document.querySelector('.theme-toggle');
+            btn.textContent = isLight ? '☀️' : '🌙';
+            // 同步到 Cookie
+            document.cookie = 'theme=' + (isLight ? 'light' : 'dark') + '; path=/; max-age=31536000; SameSite=Lax';
+        }
+
         async function handleSubmit(e) {
             e.preventDefault();
             const password = document.getElementById('password').value;
