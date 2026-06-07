@@ -135,9 +135,9 @@
             background-color: rgba(16, 185, 129, 0.2);
             color: #34d399;
         }
-        /* 模态框滚动修复 */
+        /* 模态框滚动修复 - 简化版 */
         .modal-scroll {
-            max-height: 85vh;
+            max-height: 80vh;
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -190,43 +190,51 @@
                 </h2>
                 <div class="flex items-center space-x-2">
                     <span id="envApiKeyBadge" class="env-badge hidden"><i class="fas fa-shield-alt mr-1"></i>服务端已配置</span>
-                    <button onclick="saveConfig()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium transition">
-                        <i class="fas fa-save mr-2"></i>保存配置
+                    <button onclick="toggleConfig()" id="configToggleBtn" class="p-2 rounded-lg hover:bg-gray-700 transition text-gray-400" title="展开/收起配置">
+                        <i id="configToggleIcon" class="fas fa-chevron-down"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium mb-2 text-gray-400">
-                        API Key 
-                        <span id="apiKeySource" class="text-xs text-gray-500 ml-1">(前端配置)</span>
-                    </label>
-                    <div class="relative">
-                        <input type="password" id="apiKey" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入你的 API Key">
-                        <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 text-gray-400 hover:text-white">
-                            <i id="apiKeyIcon" class="fas fa-eye"></i>
-                        </button>
+            <div id="configContent" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-400">
+                            API Key 
+                            <span id="apiKeySource" class="text-xs text-gray-500 ml-1">(前端配置)</span>
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="apiKey" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入你的 API Key">
+                            <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 text-gray-400 hover:text-white">
+                                <i id="apiKeyIcon" class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">如果服务端已配置环境变量，此处留空即可</p>
                     </div>
-                    <p class="text-xs text-gray-500 mt-1">如果服务端已配置环境变量，此处留空即可</p>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-400">API 基础地址</label>
+                        <input type="text" id="baseUrl" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" value="/api/client/dnsopenapi" readonly>
+                        <p class="text-xs text-gray-500 mt-1">通过 Edge Function 代理，自动处理 CORS</p>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium mb-2 text-gray-400">API 基础地址</label>
-                    <input type="text" id="baseUrl" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" value="/api/client/dnsopenapi" readonly>
-                    <p class="text-xs text-gray-500 mt-1">通过 Edge Function 代理，自动处理 CORS</p>
-                </div>
-            </div>
 
-            <div class="mt-4 p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg">
-                <div class="flex items-start space-x-2">
-                    <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
-                    <div class="text-sm text-blue-200">
-                        <p><strong>部署说明：</strong></p>
-                        <ul class="list-disc list-inside mt-1 space-y-1 text-xs">
-                            <li>支持在 EdgeOne Pages 环境变量中配置 <code>DNS_API_KEY</code> 和 <code>ACCESS_PASSWORD</code></li>
-                            <li>如果环境变量未配置 API Key，则需要在页面输入</li>
-                            <li>如果配置了 <code>ACCESS_PASSWORD</code>，访问页面需要输入密码</li>
-                        </ul>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="saveConfig()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-save mr-2"></i>保存配置
+                    </button>
+                </div>
+
+                <div class="mt-4 p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg">
+                    <div class="flex items-start space-x-2">
+                        <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                        <div class="text-sm text-blue-200">
+                            <p><strong>部署说明：</strong></p>
+                            <ul class="list-disc list-inside mt-1 space-y-1 text-xs">
+                                <li>支持在 EdgeOne Pages 环境变量中配置 <code>DNS_API_KEY</code> 和 <code>ACCESS_PASSWORD</code></li>
+                                <li>如果环境变量未配置 API Key，则需要在页面输入</li>
+                                <li>如果配置了 <code>ACCESS_PASSWORD</code>，访问页面需要输入密码</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -307,69 +315,77 @@
 
     <!-- 修复后的模态框 - 添加滚动支持 -->
     <div id="recordModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
-        <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeModal()"></div>
+        <div class="modal-overlay fixed inset-0 bg-black/60" onclick="closeModal()"></div>
         <div class="relative min-h-screen flex items-start justify-center p-4 pt-10 pb-10">
-            <div class="card rounded-xl shadow-2xl w-full max-w-md p-6 relative fade-in modal-scroll my-8">
-                <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
-                    <i class="fas fa-times"></i>
-                </button>
+            <div class="card rounded-xl shadow-2xl w-full max-w-md relative fade-in my-8">
+                <!-- 头部固定 -->
+                <div class="p-6 pb-0">
+                    <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <h3 id="modalTitle" class="text-xl font-bold mb-6">添加解析记录</h3>
+                </div>
 
-                <h3 id="modalTitle" class="text-xl font-bold mb-6">添加解析记录</h3>
+                <!-- 可滚动内容区 -->
+                <div class="px-6 modal-scroll">
+                    <form id="recordForm" onsubmit="handleRecordSubmit(event)">
+                        <input type="hidden" id="recordId">
 
-                <form id="recordForm" onsubmit="handleRecordSubmit(event)">
-                    <input type="hidden" id="recordId">
-
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium mb-2 text-gray-400">域名</label>
-                            <input type="text" id="formDomain" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" readonly>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium mb-2 text-gray-400">主机记录 <span class="text-red-500">*</span></label>
-                            <div class="flex items-center">
-                                <input type="text" id="formHost" class="input-field w-full px-4 py-2 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="www" required>
-                                <span class="px-3 py-2 bg-gray-700 text-gray-400 rounded-r-lg border border-l-0 border-gray-600">.<span id="formDomainSuffix">example.com</span></span>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-gray-400">域名</label>
+                                <input type="text" id="formDomain" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" readonly>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">使用 @ 表示根域名</p>
-                        </div>
 
-                        <div>
-                            <label class="block text-sm font-medium mb-2 text-gray-400">记录类型 <span class="text-red-500">*</span></label>
-                            <select id="formType" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                                <option value="A">A - IPv4 地址</option>
-                                <option value="AAAA">AAAA - IPv6 地址</option>
-                                <option value="CNAME">CNAME - 别名记录</option>
-                                <option value="MX">MX - 邮件交换</option>
-                                <option value="TXT">TXT - 文本记录</option>
-                                <option value="NS">NS - 名称服务器</option>
-                            </select>
-                        </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-gray-400">主机记录 <span class="text-red-500">*</span></label>
+                                <div class="flex items-center">
+                                    <input type="text" id="formHost" class="input-field w-full px-4 py-2 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="www" required>
+                                    <span class="px-3 py-2 bg-gray-700 text-gray-400 rounded-r-lg border border-l-0 border-gray-600">.<span id="formDomainSuffix">example.com</span></span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">使用 @ 表示根域名</p>
+                            </div>
 
-                        <div>
-                            <label class="block text-sm font-medium mb-2 text-gray-400">记录值 <span class="text-red-500">*</span></label>
-                            <input type="text" id="formValue" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1.2.3.4" required>
-                        </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-gray-400">记录类型 <span class="text-red-500">*</span></label>
+                                <select id="formType" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                    <option value="A">A - IPv4 地址</option>
+                                    <option value="AAAA">AAAA - IPv6 地址</option>
+                                    <option value="CNAME">CNAME - 别名记录</option>
+                                    <option value="MX">MX - 邮件交换</option>
+                                    <option value="TXT">TXT - 文本记录</option>
+                                    <option value="NS">NS - 名称服务器</option>
+                                </select>
+                            </div>
 
-                        <div>
-                            <label class="block text-sm font-medium mb-2 text-gray-400">TTL (秒)</label>
-                            <input type="number" id="formTTL" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="600" min="60" step="1">
-                            <p class="text-xs text-gray-500 mt-1">默认 600 秒</p>
-                        </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-gray-400">记录值 <span class="text-red-500">*</span></label>
+                                <input type="text" id="formValue" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1.2.3.4" required>
+                            </div>
 
-                        <div>
-                            <label class="block text-sm font-medium mb-2 text-gray-400">优先级 (MX 记录)</label>
-                            <input type="number" id="formPriority" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="10" min="0" max="65535">
-                        </div>
-                    </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-gray-400">TTL (秒)</label>
+                                <input type="number" id="formTTL" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="600" min="60" step="1">
+                                <p class="text-xs text-gray-500 mt-1">默认 600 秒</p>
+                            </div>
 
-                    <div class="mt-6 flex space-x-3">
+                            <div>
+                                <label class="block text-sm font-medium mb-2 text-gray-400">优先级 (MX 记录)</label>
+                                <input type="number" id="formPriority" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="10" min="0" max="65535">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 底部固定按钮区 -->
+                <div class="p-6 pt-4 border-t border-gray-700/50 mt-4">
+                    <div class="flex space-x-3">
                         <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
-                        <button type="submit" id="submitBtn" class="flex-1 btn-primary px-4 py-2 rounded-lg font-medium transition">
+                        <button type="button" onclick="document.getElementById('recordForm').dispatchEvent(new Event('submit'))" id="submitBtn" class="flex-1 btn-primary px-4 py-2 rounded-lg font-medium transition">
                             <span id="submitText">确认添加</span>
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
@@ -460,6 +476,18 @@
 
         function loadConfig() {
             document.getElementById('apiKey').value = localStorage.getItem('dns_api_key') || '';
+        }
+
+        function toggleConfig() {
+            const content = document.getElementById('configContent');
+            const icon = document.getElementById('configToggleIcon');
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            } else {
+                content.classList.add('hidden');
+                icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
         }
 
         function toggleApiKeyVisibility() {
