@@ -10,9 +10,20 @@ export async function onRequest(context) {
         return next();
     }
 
+    // ===== 调试：打印环境变量状态 =====
+    console.log('=== _middleware.js debug ===');
+    console.log('pathname:', pathname);
+    console.log('env keys:', Object.keys(env || {}));
+    console.log('ACCESS_PASSWORD exists:', !!env.ACCESS_PASSWORD);
+    console.log('ACCESS_PASSWORD type:', typeof env.ACCESS_PASSWORD);
+    console.log('ACCESS_PASSWORD length:', env.ACCESS_PASSWORD ? env.ACCESS_PASSWORD.length : 0);
+    console.log('dns_kv exists:', !!env.dns_kv);
+    // ===== 调试结束 =====
+
     // 检查是否需要密码验证
     const accessPassword = env.ACCESS_PASSWORD;
     if (!accessPassword || accessPassword.trim() === '') {
+        console.log('No ACCESS_PASSWORD configured, skipping auth');
         return next();
     }
 
@@ -28,7 +39,9 @@ export async function onRequest(context) {
         try {
             const session = await env.dns_kv.get(`session:${sessionToken}`);
             if (session === 'valid') validSession = true;
-        } catch (e) {}
+        } catch (e) {
+            console.log('KV check error:', e.message);
+        }
     }
 
     // 降级：检查Cookie格式
@@ -37,8 +50,11 @@ export async function onRequest(context) {
     }
 
     if (validSession) {
+        console.log('Session valid, allowing access');
         return next();
     }
+
+    console.log('No valid session, returning password page');
 
     // 未验证，返回密码页面
     // 读取主题 Cookie
@@ -179,7 +195,6 @@ function getPasswordHTML(theme) {
             }
             document.querySelector('.theme-toggle').textContent = isLight ? '☀️' : '🌙';
             document.cookie = 'theme=' + (isLight ? 'light' : 'dark') + '; path=/; max-age=31536000; SameSite=Lax';
-            // 刷新页面应用新主题
             setTimeout(() => location.reload(), 100);
         }
 
