@@ -502,28 +502,34 @@
         });
 
         // 检查是否需要密码验证
-        async function checkServerConfig() {
-            try {
-                const response = await fetch('/api/client/dnsopenapi/domain_list', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: '{}'
-                });
-                if (response.status === 401) {
-                    // 需要密码验证
-                    hasAccessPassword = true;
-                    updateAuthUI();
-                } else if (response.status !== 403) {
-                    hasServerApiKey = true;
-                    document.getElementById('envApiKeyBadge').classList.remove('hidden');
-                    document.getElementById('apiKeySource').textContent = '(服务端已配置，可选)';
-                    document.getElementById('apiKey').placeholder = '服务端已配置 API Key（可选覆盖）';
-                }
-            } catch (e) {
-                console.log('Server config check failed:', e);
+         async function checkServerConfig() {
+    try {
+        const response = await fetch('/api/client/dnsopenapi/domain_list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}'
+        });
+        if (response.status === 401) {
+            // 需要密码验证
+            hasAccessPassword = true;
+            updateAuthUI();
+            updateContentLock();
+        } else if (response.status !== 403) {
+            hasServerApiKey = true;
+            document.getElementById('envApiKeyBadge').classList.remove('hidden');
+            // 如果不需要密码，直接标记为已认证
+            if (response.ok) {
+                hasAccessPassword = false;
+                isAuthenticated = true;
+                updateAuthUI();
+                updateContentLock();
             }
         }
-
+    } catch (e) {
+        console.log('Server config check failed:', e);
+    }
+}
+        
         // 检查登录状态
         function checkAuthStatus() {
             const cookie = document.cookie;
@@ -599,66 +605,67 @@
         }
 
         async function handleLogin(e) {
-            e.preventDefault();
-            const password = document.getElementById('loginPassword').value;
-            const errorDiv = document.getElementById('loginError');
-            const btn = document.getElementById('loginBtn');
-            const originalText = document.getElementById('loginBtnText').textContent;
-            
-            if (!password) return;
+    e.preventDefault();
+    const password = document.getElementById('loginPassword').value;
+    const errorDiv = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    const originalText = document.getElementById('loginBtnText').textContent;
+    
+    if (!password) return;
 
-            btn.disabled = true;
-            document.getElementById('loginBtnText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
+    btn.disabled = true;
+    document.getElementById('loginBtnText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
 
-            try {
-                const response = await fetch('/api/auth/verify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
-                });
+    try {
+        const response = await fetch('/api/auth/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    // 设置 Cookie
-                    document.cookie = 'dns_session=' + encodeURIComponent(data.token) + '; path=/; max-age=86400; SameSite=Lax';
-                    isAuthenticated = true;
-                    updateAuthUI();
-                    updateContentLock();
-                    closeLoginModal();
-                    showToast('登录成功', 'success');
-                    loadDomains();
-                } else {
-                    const data = await response.json();
-                    errorDiv.textContent = data.error || '密码错误，请重试';
-                    errorDiv.classList.remove('hidden');
-                }
-            } catch (err) {
-                errorDiv.textContent = '验证失败，请重试';
-                errorDiv.classList.remove('hidden');
-            } finally {
-                btn.disabled = false;
-                document.getElementById('loginBtnText').textContent = originalText;
-            }
-        }
-
-        function logout() {
-            // 清除 Cookie
-            document.cookie = 'dns_session=; path=/; max-age=0; SameSite=Lax';
-            isAuthenticated = false;
-            domains = [];
-            records = [];
-            currentDomain = null;
+        if (response.ok) {
+            const data = await response.json();
+            // 设置 Cookie - 与服务器返回的格式一致
+            document.cookie = 'dns_session=' + encodeURIComponent(data.token) + '; Path=/; Max-Age=86400; SameSite=Lax';
+            isAuthenticated = true;
+            hasAccessPassword = true; // 确保标记为需要密码
             updateAuthUI();
             updateContentLock();
-            renderDomains();
-            renderRecords();
-            document.getElementById('currentDomain').textContent = '';
-            document.getElementById('btnAddRecord').disabled = true;
-            document.getElementById('btnAddRecord').classList.add('opacity-50', 'cursor-not-allowed');
-            document.getElementById('btnRefreshRecords').disabled = true;
-            document.getElementById('btnRefreshRecords').classList.add('opacity-50', 'cursor-not-allowed');
-            showToast('已退出登录', 'info');
+            closeLoginModal();
+            showToast('登录成功', 'success');
+            loadDomains();
+        } else {
+            const data = await response.json();
+            errorDiv.textContent = data.error || '密码错误，请重试';
+            errorDiv.classList.remove('hidden');
         }
+    } catch (err) {
+        errorDiv.textContent = '验证失败，请重试';
+        errorDiv.classList.remove('hidden');
+    } finally {
+        btn.disabled = false;
+        document.getElementById('loginBtnText').textContent = originalText;
+    }
+}
+        
+       function logout() {
+    // 清除 Cookie - 必须与设置时的属性一致
+    document.cookie = 'dns_session=; Path=/; Max-Age=0; SameSite=Lax';
+    isAuthenticated = false;
+    domains = [];
+    records = [];
+    currentDomain = null;
+    updateAuthUI();
+    updateContentLock();
+    renderDomains();
+    renderRecords();
+    document.getElementById('currentDomain').textContent = '';
+    document.getElementById('btnAddRecord').disabled = true;
+    document.getElementById('btnAddRecord').classList.add('opacity-50', 'cursor-not-allowed');
+    document.getElementById('btnRefreshRecords').disabled = true;
+    document.getElementById('btnRefreshRecords').classList.add('opacity-50', 'cursor-not-allowed');
+    showToast('已退出登录', 'info');
+}
 
         function checkTheme() {
             const savedTheme = localStorage.getItem('theme') || 'dark';
