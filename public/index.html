@@ -233,6 +233,10 @@
                 </div>
             </div>
             <div class="flex items-center space-x-3">
+                <div class="hidden md:flex items-center space-x-2 text-sm text-gray-400">
+                    <span id="statusIndicator" class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span id="statusText">就绪</span>
+                </div>
                 <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-700 transition">
                     <i id="themeIcon" class="fas fa-sun"></i>
                 </button>
@@ -241,15 +245,10 @@
                     <i id="authIcon" class="fas fa-lock"></i>
                     <span id="authText">登录</span>
                 </button>
-                <div class="hidden md:flex items-center space-x-2 text-sm text-gray-400">
-                    <span id="statusIndicator" class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    <span id="statusText">就绪</span>
-                </div>
-            </div>
-        </div>
-    </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <section id="configSection" class="card rounded-xl p-6 mb-6 fade-in">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold flex items-center">
@@ -307,6 +306,16 @@
                 </div>
             </div>
         </section>
+
+
+                
+
+                
+            </div>
+        </div>
+    </header>
+
+   
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <section class="lg:col-span-1">
