@@ -3,59 +3,8 @@ export async function onRequest(context) {
     const { request, env } = context;
     const url = new URL(request.url);
 
-    // 检查是否需要密码验证
-    const accessPassword = env.ACCESS_PASSWORD;
-
-    if (!accessPassword || accessPassword.trim() === '') {
-        // 没有设置密码，直接返回管理页面
-        return new Response(dnsManagerHTML, {
-            status: 200,
-            headers: { 
-                'Content-Type': 'text/html; charset=utf-8',
-                'Cache-Control': 'no-store'
-            }
-        });
-    }
-
-    // 从 Cookie 获取会话
-    const cookie = request.headers.get('cookie') || '';
-    const sessionMatch = cookie.match(/dns_session=([^;]+)/);
-    const sessionToken = sessionMatch ? decodeURIComponent(sessionMatch[1]) : null;
-
-    // 验证会话
-    let validSession = false;
-
-    if (sessionToken && env.dns_kv) {
-        try {
-            const session = await env.dns_kv.get(`session:${sessionToken}`);
-            if (session === 'valid') validSession = true;
-        } catch (e) {}
-    }
-
-    // 降级：检查Cookie格式
-    if (!validSession && sessionToken && sessionToken.startsWith('dns_')) {
-        validSession = true;
-    }
-
-    if (validSession) {
-        // 已验证，返回管理页面
-        return new Response(dnsManagerHTML, {
-            status: 200,
-            headers: { 
-                'Content-Type': 'text/html; charset=utf-8',
-                'Cache-Control': 'no-store'
-            }
-        });
-    }
-
-    // 未验证，返回管理页面（前端会处理登录弹窗）
-    return new Response(dnsManagerHTML, {
-        status: 200,
-        headers: { 
-            'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'no-store'
-        }
-    });
+    // 直接重定向到 dnsindex.html，不再拦截密码
+    return Response.redirect(url.origin + '/', 302);
 }
 
 const dnsManagerHTML = `<!DOCTYPE html>
