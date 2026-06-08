@@ -12,21 +12,22 @@ export default async function onRequest(context) {
         
         let validSession = false;
         
-        // 优先检查 KV
-        if (sessionToken && env.dns_kv) {
+        // 修复：直接使用 dns_kv，不需要 env. 前缀
+        if (sessionToken) {
             try {
-                const session = await env.dns_kv.get(`session:${sessionToken}`);
+                const session = await dns_kv.get(`session:${sessionToken}`);
                 if (session === 'valid') validSession = true;
-            } catch (e) {}
+            } catch (e) {
+                console.log('KV get failed:', e);
+            }
         }
         
-        // 如果没有 KV 或 KV 检查失败，验证 token 格式（时间戳 + 随机数，24小时内有效）
+        // 如果 KV 检查失败，验证 token 格式（时间戳 + 随机数，24小时内有效）
         if (!validSession && sessionToken && sessionToken.startsWith('dns_')) {
             const parts = sessionToken.split('_');
             if (parts.length >= 2) {
                 const timestamp = parseInt(parts[1]);
                 const now = Date.now();
-                // 验证时间戳是否在 24 小时内
                 if (!isNaN(timestamp) && (now - timestamp) < 86400000) {
                     validSession = true;
                 }
@@ -44,7 +45,7 @@ export default async function onRequest(context) {
         }
     }
 
-    // API代理逻辑
+    // API代理逻辑（保持不变）
     const API_BASE = env.DNS_API_BASE || 'vps8.zz.cd';
     const fullApiBase = API_BASE.startsWith('http') ? API_BASE : 'https://' + API_BASE;
     const targetUrl = new URL(url.pathname + url.search, fullApiBase);
