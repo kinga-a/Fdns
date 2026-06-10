@@ -1,4 +1,25 @@
 // edge-functions/api/client/dnsopenapi/[[default]].js
+// 安全修复版本
+
+// 允许的 API 端点白名单
+const ALLOWED_ENDPOINTS = [
+    'domain_list',
+    'record_list', 
+    'record_create',
+    'record_update',
+    'record_delete'
+];
+
+// 请求体大小限制 (1MB)
+const MAX_BODY_SIZE = 1024 * 1024;
+
+// 检查路径是否在白名单中
+function isAllowedEndpoint(pathname) {
+    // 移除前缀 /api/client/dnsopenapi/
+    const endpoint = pathname.replace(/^\/api\/client\/dnsopenapi\//, '').replace(/^\//, '');
+    return ALLOWED_ENDPOINTS.includes(endpoint);
+}
+
 export default async function onRequest(context) {
     const { request, env } = context;
     const url = new URL(request.url);
@@ -9,31 +30,21 @@ export default async function onRequest(context) {
         const cookie = request.headers.get('cookie') || '';
         const sessionMatch = cookie.match(/dns_session=([^;]+)/);
         const sessionToken = sessionMatch ? decodeURIComponent(sessionMatch[1]) : null;
-        
+
         let validSession = false;
-        
-        // 修复：直接使用 dns_kv，不需要 env. 前缀
-        if (sessionToken) {
+
+        // 使用环境变量中的 KV 绑定
+        const kv = env.dns_kv;
+        if (sessionToken && kv) {
             try {
-                const session = await dns_kv.get(`session:${sessionToken}`);
+                const session = await kv.get(`session:${sessionToken}`);
                 if (session === 'valid') validSession = true;
             } catch (e) {
                 console.log('KV get failed:', e);
             }
         }
-        
-        // 如果 KV 检查失败，验证 token 格式（时间戳 + 随机数，24小时内有效）
-        if (!validSession && sessionToken && sessionToken.startsWith('dns_')) {
-            const parts = sessionToken.split('_');
-            if (parts.length >= 2) {
-                const timestamp = parseInt(parts[1]);
-                const now = Date.now();
-                if (!isNaN(timestamp) && (now - timestamp) < 86400000) {
-                    validSession = true;
-                }
-            }
-        }
-        
+
+        // 移除时间戳回退验证！KV 验证失败即拒绝
         if (!validSession) {
             return new Response(JSON.stringify({ error: '未授权访问' }), {
                 status: 401,
@@ -45,7 +56,32 @@ export default async function onRequest(context) {
         }
     }
 
-    // API代理逻辑（保持不变）
+    // API 端点白名单校验
+    if (!isAllowedEndpoint(url.pathname)) {
+        return new Response(JSON.stringify({ error: '无效的 API 端点' }), {
+            status: 403,
+            headers: { 
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            }
+        });
+    }
+
+    // 请求体大小限制
+    if (request.body) {
+        const contentLength = request.headers.get('content-length');
+        if (contentLength && parseInt(contentLength) > MAX_BODY_SIZE) {
+            return new Response(JSON.stringify({ error: '请求体过大' }), {
+                status: 413,
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                }
+            });
+        }
+    }
+
+    // API代理逻辑
     const API_BASE = env.DNS_API_BASE || 'vps8.zz.cd';
     const fullApiBase = API_BASE.startsWith('http') ? API_BASE : 'https://' + API_BASE;
     const targetUrl = new URL(url.pathname + url.search, fullApiBase);
@@ -78,7 +114,8 @@ export default async function onRequest(context) {
         newHeaders.set('Access-Control-Allow-Origin', '*');
         newHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         newHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-        newHeaders.set('Access-Control-Allow-Credentials', 'true');
+        // 修复：移除冲突的 Credentials 头，或动态设置 Origin
+        // newHeaders.set('Access-Control-Allow-Credentials', 'true');
         newHeaders.set('Access-Control-Max-Age', '86400');
 
         if (request.method === 'OPTIONS') {
@@ -91,10 +128,10 @@ export default async function onRequest(context) {
             headers: newHeaders
         });
     } catch (error) {
+        // 修复：不暴露内部 target URL
         return new Response(JSON.stringify({
             error: 'Proxy Error',
-            message: error.message,
-            target: targetUrl.toString()
+            message: '后端服务暂时不可用'
         }), {
             status: 502,
             headers: {
