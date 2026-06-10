@@ -494,6 +494,14 @@
         let isAuthenticated = false;
         let hasAccessPassword = false;
 
+
+        // HTML 转义函数 - 防止 DOM XSS
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
         document.addEventListener('DOMContentLoaded', () => {
             loadConfig();
             checkTheme();
@@ -530,12 +538,21 @@
     }
 }
         
-        // 检查登录状态
-        function checkAuthStatus() {
-            const cookie = document.cookie;
-            const sessionMatch = cookie.match(/dns_session=([^;]+)/);
-            if (sessionMatch) {
-                isAuthenticated = true;
+        // 检查登录状态 - 通过 API 验证（Cookie 为 HttpOnly，前端无法直接读取）
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/client/dnsopenapi/domain_list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                });
+                if (response.status === 401) {
+                    isAuthenticated = false;
+                } else {
+                    isAuthenticated = true;
+                }
+            } catch (e) {
+                isAuthenticated = false;
             }
             updateAuthUI();
             updateContentLock();
@@ -625,10 +642,9 @@
 
         if (response.ok) {
             const data = await response.json();
-            // 设置 Cookie - 与服务器返回的格式一致
-            document.cookie = 'dns_session=' + encodeURIComponent(data.token) + '; Path=/; Max-Age=86400; SameSite=Lax';
+            // 后端已通过 Set-Cookie 返回 HttpOnly Cookie，前端无需手动设置
             isAuthenticated = true;
-            hasAccessPassword = true; // 确保标记为需要密码
+            hasAccessPassword = true;
             updateAuthUI();
             updateContentLock();
             closeLoginModal();
@@ -649,8 +665,8 @@
 }
         
        function logout() {
-    // 清除 Cookie - 必须与设置时的属性一致
-    document.cookie = 'dns_session=; Path=/; Max-Age=0; SameSite=Lax';
+    // 清除 Cookie - 必须与设置时的属性一致（HttpOnly 由浏览器处理，前端设置时不能带 HttpOnly）
+    document.cookie = 'dns_session=; Path=/; Max-Age=0; SameSite=Lax; Secure';
     isAuthenticated = false;
     domains = [];
     records = [];
@@ -694,19 +710,19 @@
                 return;
             }
             if (apiKey) {
-                localStorage.setItem('dns_api_key', apiKey);
+                sessionStorage.setItem('dns_api_key', apiKey);
             } else {
-                localStorage.removeItem('dns_api_key');
+                sessionStorage.removeItem('dns_api_key');
             }
             closeApiConfigModal();
-            showToast('配置已保存', 'success');
+            showToast('配置已保存（当前会话有效）', 'success');
             if (isAuthenticated || !hasAccessPassword) {
                 loadDomains();
             }
         }
 
         function loadConfig() {
-            document.getElementById('apiKey').value = localStorage.getItem('dns_api_key') || '';
+            document.getElementById('apiKey').value = sessionStorage.getItem('dns_api_key') || '';
         }
 
         function showApiConfigModal() {
@@ -731,7 +747,7 @@
         }
 
         async function apiCall(endpoint, data = {}) {
-            const apiKey = localStorage.getItem('dns_api_key');
+            const apiKey = sessionStorage.getItem('dns_api_key');
             const headers = { 'Content-Type': 'application/json' };
             if (apiKey) {
                 headers['Authorization'] = 'Basic ' + btoa('client:' + apiKey);
@@ -813,8 +829,9 @@
                 return;
             }
             container.innerHTML = filtered.map((domain) => {
-                const domainName = domain.domain || '';
-                const isActive = currentDomain === domainName;
+                const rawDomainName = domain.domain || '';
+                const domainName = escapeHtml(rawDomainName);
+                const isActive = currentDomain === rawDomainName;
                 return `
                     <div onclick="selectDomain('${domainName}')" class="record-row p-3 rounded-lg cursor-pointer flex justify-between items-center ${isActive ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-gray-700/50'}">
                         <div class="flex items-center space-x-3">
@@ -868,11 +885,11 @@
                 return;
             }
             tbody.innerHTML = records.map(record => {
-                const type = (record.type || '').toUpperCase();
+                const type = escapeHtml((record.type || '').toUpperCase());
                 const typeClass = `type-${type.toLowerCase()}`;
-                const host = record.host || record.name || record.subdomain || '@';
-                const value = record.value || record.content || record.address || record.data || record.target || '-';
-                const ttl = record.ttl || record.TTL || '-';
+                const host = escapeHtml(record.host || record.name || record.subdomain || '@');
+                const value = escapeHtml(record.value || record.content || record.address || record.data || record.target || '-');
+                const ttl = escapeHtml(String(record.ttl || record.TTL || '-'));
                 const id = record.id || record.record_id || 0;
                 return `
                     <tr class="record-row border-b border-gray-700/50">
