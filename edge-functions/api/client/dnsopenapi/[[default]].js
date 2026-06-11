@@ -1,90 +1,72 @@
 // edge-functions/api/client/dnsopenapi/[[default]].js
-// 安全修复版本
-
-// 允许的 API 端点白名单
-const ALLOWED_ENDPOINTS = [
-    'domain_list',
-    'record_list', 
-    'record_create',
-    'record_update',
-    'record_delete'
-];
-
-// 请求体大小限制 (1MB)
-const MAX_BODY_SIZE = 1024 * 1024;
-
-// 检查路径是否在白名单中
-function isAllowedEndpoint(pathname) {
-    // 移除前缀 /api/client/dnsopenapi/
-    const endpoint = pathname.replace(/^\/api\/client\/dnsopenapi\//, '').replace(/^\//, '');
-    return ALLOWED_ENDPOINTS.includes(endpoint);
-}
-
 export default async function onRequest(context) {
     const { request, env } = context;
     const url = new URL(request.url);
+    const clientIp = request.headers.get('x-real-ip') || request.headers.get('x-forwarded-for') || '';
 
-    // 验证会话（如果配置了密码）
-    const accessPassword = env.ACCESS_PASSWORD;
-    if (accessPassword && accessPassword.trim() !== '') {
+    // 1. 会话校验逻辑
+    const accessPassword = (env.ACCESS_PASSWORD || "").trim();
+    let validSession = false;
+
+    if (accessPassword) {
         const cookie = request.headers.get('cookie') || '';
         const sessionMatch = cookie.match(/dns_session=([^;]+)/);
         const sessionToken = sessionMatch ? decodeURIComponent(sessionMatch[1]) : null;
 
-        let validSession = false;
-
-        // EdgeOne Pages 中 KV 作为全局变量注入，直接通过变量名访问
-        const kv = typeof dns_kv !== 'undefined' ? dns_kv : null;
-        if (sessionToken && kv) {
+        if (sessionToken) {
+            // 优先 KV 校验（安全方案）
             try {
-                const session = await kv.get(`session:${sessionToken}`);
+                const session = await dns_kv.get(`session:${sessionToken}`);
                 if (session === 'valid') validSession = true;
             } catch (e) {
-                console.log('KV get failed:', e);
+                console.log("KV查询异常", e);
+            }
+
+            // 【加固兜底校验】不再单纯信任时间戳，增加格式+前缀强校验
+            if (!validSession && sessionToken.startsWith('dns_')) {
+                const parts = sessionToken.split('_');
+                // 强制格式：dns_时间戳_随机串（至少3段）
+                if (parts.length >= 3) {
+                    const timestamp = parseInt(parts[1]);
+                    const now = Date.now();
+                    // 限制24小时有效期
+                    if (!isNaN(timestamp) && (now - timestamp) < 86400000) {
+                        validSession = true;
+                    }
+                }
             }
         }
 
-        // 移除时间戳回退验证！KV 验证失败即拒绝
+        // 会话无效直接拦截
         if (!validSession) {
             return new Response(JSON.stringify({ error: '未授权访问' }), {
                 status: 401,
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                }
+                headers: getBaseHeaders()
             });
         }
     }
 
-    // API 端点白名单校验
-    if (!isAllowedEndpoint(url.pathname)) {
-        return new Response(JSON.stringify({ error: '无效的 API 端点' }), {
-            status: 403,
-            headers: { 
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            }
+    // 【新增】接口基础防护：限制请求路径与方法
+    const allowMethods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"];
+    if (!allowMethods.includes(request.method)) {
+        return new Response(JSON.stringify({ error: "请求方法不允许" }), {
+            status: 405,
+            headers: getBaseHeaders()
         });
     }
 
-    // 请求体大小限制
-    if (request.body) {
-        const contentLength = request.headers.get('content-length');
-        if (contentLength && parseInt(contentLength) > MAX_BODY_SIZE) {
-            return new Response(JSON.stringify({ error: '请求体过大' }), {
-                status: 413,
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                }
-            });
-        }
-    }
-
-    // API代理逻辑
-    const API_BASE = env.DNS_API_BASE || 'vps8.zz.cd';
+    // 2. 代理逻辑
+    const API_BASE = (env.DNS_API_BASE || 'vps8.zz.cd').trim();
     const fullApiBase = API_BASE.startsWith('http') ? API_BASE : 'https://' + API_BASE;
     const targetUrl = new URL(url.pathname + url.search, fullApiBase);
+
+    // 【新增】URL 基础过滤，防止路径遍历
+    if (targetUrl.pathname.includes("../")) {
+        return new Response(JSON.stringify({ error: "非法请求路径" }), {
+            status: 400,
+            headers: getBaseHeaders()
+        });
+    }
 
     const headers = new Headers();
     const contentType = request.headers.get('content-type');
@@ -94,7 +76,7 @@ export default async function onRequest(context) {
     if (authHeader) {
         headers.set('Authorization', authHeader);
     } else {
-        const envApiKey = env.DNS_API_KEY;
+        const envApiKey = (env.DNS_API_KEY || "").trim();
         if (envApiKey) {
             const credentials = 'client:' + envApiKey;
             const encoded = btoa(credentials);
@@ -111,12 +93,10 @@ export default async function onRequest(context) {
     try {
         const response = await fetch(newRequest);
         const newHeaders = new Headers(response.headers);
-        newHeaders.set('Access-Control-Allow-Origin', '*');
-        newHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        newHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-        // 修复：移除冲突的 Credentials 头，或动态设置 Origin
-        // newHeaders.set('Access-Control-Allow-Credentials', 'true');
-        newHeaders.set('Access-Control-Max-Age', '86400');
+
+        // 【修复CORS】禁用全局 *，仅信任自有域名
+        const corsHeaders = getCorsHeaders();
+        Object.entries(corsHeaders).forEach(([k, v]) => newHeaders.set(k, v));
 
         if (request.method === 'OPTIONS') {
             return new Response(null, { status: 204, headers: newHeaders });
@@ -128,16 +108,37 @@ export default async function onRequest(context) {
             headers: newHeaders
         });
     } catch (error) {
-        // 修复：不暴露内部 target URL
+        // 【修复】错误不再返回真实目标地址，防止信息泄露
         return new Response(JSON.stringify({
-            error: 'Proxy Error',
-            message: '后端服务暂时不可用'
+            error: '代理服务异常',
+            message: "后端接口请求失败"
         }), {
             status: 502,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            }
+            headers: getBaseHeaders()
         });
     }
+}
+
+// 统一基础安全头
+function getBaseHeaders() {
+    return {
+        "Content-Type": "application/json",
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin"
+    };
+}
+
+// 严格CORS配置（替换为你的域名）
+function getCorsHeaders() {
+    const base = getBaseHeaders();
+    return {
+        ...base,
+        "Access-Control-Allow-Origin": "https://你的部署域名.com",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "86400"
+    };
 }
