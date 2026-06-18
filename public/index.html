@@ -197,6 +197,7 @@
         }
     </style>
 <base target="_blank">
+<base target="_blank">
 </head>
 <body class="min-h-screen">
     <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
@@ -630,10 +631,9 @@
             isAuthenticated = true;
             hasAccessPassword = true; // 确保标记为需要密码
             updateAuthUI();
-            updateContentLock();
+            updateContentLock(); // 内部已包含 domains.length === 0 时自动调用 loadDomains()
             closeLoginModal();
             showToast('登录成功', 'success');
-            loadDomains();
         } else {
             const data = await response.json();
             errorDiv.textContent = data.error || '密码错误，请重试';
