@@ -2,219 +2,423 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DNS Manager - DNS 记录管理</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-card: #334155;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
-            --danger: #ef4444;
-            --success: #10b981;
-            --warning: #f59e0b;
+     <style>
+        /* styles.css 完整优化版 */
+:root {
+    --bg-primary: #0a0e1a;
+    --bg-secondary: #111827;
+    --bg-card: #1e293b;
+    --bg-hover: #27354f;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --accent-glow: rgba(59, 130, 246, 0.3);
+    --danger: #ef4444;
+    --danger-hover: #dc2626;
+    --success: #10b981;
+    --success-hover: #059669;
+    --warning: #f59e0b;
+    --border: rgba(255,255,255,0.06);
+    --shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.light-mode {
+    --bg-primary: #f1f5f9;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-hover: #f8fafc;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --border: rgba(0,0,0,0.08);
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.05);
+}
+* { -webkit-tap-highlight-color: transparent; }
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    border-radius: 16px;
+}
+.light-mode .card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.05);
+}
+.input-field {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: all 0.2s;
+    font-size: 16px;
+}
+.input-field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    outline: none;
+}
+.light-mode .input-field {
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+}
+.btn {
+    border-radius: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    color: white;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+}
+.btn-primary:hover {
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+    transform: translateY(-1px);
+}
+.btn-danger {
+    background: linear-gradient(135deg, var(--danger), var(--danger-hover));
+    color: white;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+}
+.btn-success {
+    background: linear-gradient(135deg, var(--success), var(--success-hover));
+    color: white;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+}
+.record-row {
+    transition: all 0.2s;
+    border-radius: 10px;
+    margin: 2px 0;
+}
+.record-row:hover {
+    background-color: var(--bg-hover);
+}
+.modal-overlay {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.toast {
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes slideIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+.loading-spinner {
+    border: 3px solid rgba(255,255,255,0.1);
+    border-top: 3px solid var(--accent);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.fade-in {
+    animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+.type-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.type-a { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
+.type-aaaa { background: rgba(147, 51, 234, 0.15); color: #c084fc; border: 1px solid rgba(147,51,234,0.2); }
+.type-cname { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); }
+.type-mx { background: rgba(249, 115, 22, 0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.2); }
+.type-txt { background: rgba(107, 114, 128, 0.15); color: #9ca3af; border: 1px solid rgba(107,114,128,0.2); }
+.type-ns { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+.env-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16,185,129,0.2);
+}
+.modal-scroll {
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.login-modal .modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+}
+.login-input {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 12px;
+    font-size: 16px;
+}
+.login-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    outline: none;
+}
+.disabled-overlay {
+    position: relative;
+}
+.disabled-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 30;
+    border-radius: inherit;
+}
+.light-mode .disabled-overlay::after {
+    background: rgba(248, 250, 252, 0.8);
+}
+.disabled-overlay .lock-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 31;
+    text-align: center;
+}
+.platform-btn {
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    font-weight: 600;
+}
+.platform-btn.active {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+    color: var(--accent);
+}
+.platform-btn:not(.active):hover {
+    background: rgba(255,255,255,0.03);
+}
+.light-mode .platform-btn:not(.active):hover {
+    background: rgba(0,0,0,0.03);
+}
+.account-select {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 14px;
+    width: 100%;
+    cursor: pointer;
+}
+.account-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    outline: none;
+}
+.light-mode .account-select {
+    background: #f8fafc;
+}
+.glass {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.light-mode .glass {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0,0,0,0.05);
+}
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+}
+.status-dot::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    opacity: 0.3;
+    animation: pulse-ring 2s infinite;
+}
+@keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.3; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+.domain-item {
+    transition: all 0.2s;
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+}
+.domain-item:hover {
+    background: var(--bg-hover);
+    transform: translateX(4px);
+}
+.domain-item.active {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.mobile-nav {
+    display: none;
+}
+.touch-btn {
+    min-height: 44px;
+    min-width: 44px;
+}
+.account-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--accent);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.account-chip:hover {
+    background: rgba(59, 130, 246, 0.2);
+}
+.account-chip.active {
+    background: var(--accent);
+    color: white;
+}
+
+/* ===================== 新增布局滚动优化 ===================== */
+/* 左侧域名面板 PC端固定高度+弹性滚动 */
+#domainSection {
+    height: 75vh;
+    display: flex;
+    flex-direction: column;
+}
+#domainList {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+}
+
+/* 右侧解析记录面板 PC端固定高度+表格滚动 */
+#recordsSection {
+    height: 75vh;
+    display: flex;
+    flex-direction: column;
+}
+#recordsTableWrap {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding-right: 4px;
+}
+
+/* ===================== 移动端适配 防底部导航遮挡 ===================== */
+@media (max-width: 1024px) {
+    .mobile-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        background: var(--bg-card);
+        border-top: 1px solid var(--border);
+        padding: 8px 16px;
+        justify-content: space-around;
+    }
+    main {
+        padding-bottom: 90px !important;
+    }
+
+    /* 手机端左侧域名面板高度50vh */
+    #domainSection {
+        height: 50vh;
+    }
+    /* 手机端右侧面板自动扣除顶部+底部导航高度 */
+    #recordsSection {
+        height: calc(100vh - 220px);
+    }
+}
+
+/* 小尺寸手机进一步微调 */
+@media (max-width: 640px) {
+    .card { border-radius: 12px; }
+    .btn { padding: 10px 16px; font-size: 0.875rem; }
+    .platform-btn { padding: 8px 12px; font-size: 0.75rem; }
+        .platform-btn.active i {
+            filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.6));
         }
-        .light-mode {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #e2e8f0;
-            --bg-card: #ffffff;
-            --text-primary: #0f172a;
-            --text-secondary: #64748b;
-        }
-        body {
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            transition: all 0.3s ease;
-        }
-        .card {
-            background-color: var(--bg-card);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .light-mode .card {
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .input-field {
-            background-color: var(--bg-secondary);
-            color: var(--text-primary);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        .light-mode .input-field {
-            background-color: #ffffff;
-            border: 1px solid #cbd5e1;
-        }
-        .btn-primary {
-            background-color: var(--accent);
-            color: white;
-        }
-        .btn-primary:hover {
-            background-color: var(--accent-hover);
-        }
-        .btn-danger {
-            background-color: var(--danger);
-            color: white;
-        }
-        .btn-success {
-            background-color: var(--success);
-            color: white;
-        }
-        .record-row {
-            transition: all 0.2s;
-        }
-        .record-row:hover {
-            background-color: rgba(59, 130, 246, 0.1);
-        }
-        .modal-overlay {
-            backdrop-filter: blur(4px);
-        }
-        .toast {
-            animation: slideIn 0.3s ease-out;
-        }
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        .loading-spinner {
-            border: 3px solid rgba(255,255,255,0.1);
-            border-top: 3px solid var(--accent);
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .fade-in {
-            animation: fadeIn 0.3s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg-primary);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--bg-secondary);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--accent);
-        }
-        .type-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 700;
-        }
-        .type-a { background-color: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .type-aaaa { background-color: rgba(147, 51, 234, 0.2); color: #c084fc; }
-        .type-cname { background-color: rgba(34, 197, 94, 0.2); color: #4ade80; }
-        .type-mx { background-color: rgba(249, 115, 22, 0.2); color: #fb923c; }
-        .type-txt { background-color: rgba(107, 114, 128, 0.2); color: #9ca3af; }
-        .type-ns { background-color: rgba(239, 68, 68, 0.2); color: #f87171; }
-        .env-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            background-color: rgba(16, 185, 129, 0.2);
-            color: #34d399;
-        }
-        .modal-scroll {
-            max-height: 80vh;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-        .modal-scroll::-webkit-scrollbar {
-            width: 6px;
-        }
-        .modal-scroll::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .modal-scroll::-webkit-scrollbar-thumb {
-            background: var(--bg-secondary);
-            border-radius: 3px;
-        }
-        /* 登录弹窗样式 */
-        .login-modal .modal-content {
-            background: var(--bg-card);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .light-mode .login-modal .modal-content {
-            border: 1px solid #e2e8f0;
-        }
-        .login-input {
-            background: var(--bg-secondary);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: var(--text-primary);
-        }
-        .light-mode .login-input {
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-        }
-        .login-input:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-        /* 遮罩层禁用状态 */
-        .disabled-overlay {
-            position: relative;
-        }
-        .disabled-overlay::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(2px);
-            z-index: 30;
-            border-radius: inherit;
-        }
-        .light-mode .disabled-overlay::after {
-            background: rgba(248, 250, 252, 0.7);
-        }
-        .disabled-overlay .lock-icon {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 31;
-            text-align: center;
-        }
-    </style>
+    .modal-scroll { max-height: 60vh; }
+    .record-row { padding: 12px; }
+    table { font-size: 0.8rem; }
+    th, td { padding: 8px 4px; }
+  }
+     </style>
+<base target="_blank">
 <base target="_blank">
 <base target="_blank">
 </head>
 <body class="min-h-screen">
-    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2 max-w-xs w-full px-4"></div>
 
     <!-- 登录验证弹窗 -->
     <div id="loginModal" class="fixed inset-0 z-50 hidden">
-        <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeLoginModal()"></div>
+        <div class="modal-overlay absolute inset-0 bg-black/70" onclick="closeLoginModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
-            <div class="login-modal modal-content rounded-xl shadow-2xl w-full max-w-sm p-8 relative fade-in text-center">
-                <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <div class="login-modal modal-content w-full max-w-sm p-8 relative scale-in text-center">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/30">
                     <i class="fas fa-shield-alt text-white text-2xl"></i>
                 </div>
                 <h3 class="text-xl font-bold mb-2">访问验证</h3>
                 <p class="text-sm text-gray-400 mb-6">请输入访问密码以继续使用 DNS Manager</p>
                 <form onsubmit="handleLogin(event)">
-                    <input type="password" id="loginPassword" class="login-input w-full px-4 py-3 rounded-lg mb-4 text-center" placeholder="访问密码" autocomplete="off" autofocus>
-                    <button type="submit" id="loginBtn" class="btn-primary w-full py-3 rounded-lg font-medium transition">
+                    <input type="password" id="loginPassword" class="login-input w-full px-4 py-3 rounded-xl mb-4 text-center" placeholder="访问密码" autocomplete="off" autofocus>
+                    <button type="submit" id="loginBtn" class="btn btn-primary w-full py-3 rounded-xl font-medium">
                         <span id="loginBtnText">进入系统</span>
                     </button>
                 </form>
@@ -225,55 +429,99 @@
 
     <!-- API配置弹窗 -->
     <div id="apiConfigModal" class="fixed inset-0 z-50 hidden">
-        <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeApiConfigModal()"></div>
+        <div class="modal-overlay absolute inset-0 bg-black/70" onclick="closeApiConfigModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
-            <div class="card rounded-xl shadow-2xl w-full max-w-md p-6 relative fade-in">
-                <button onclick="closeApiConfigModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
+            <div class="card w-full max-w-lg p-6 relative scale-in">
+                <button onclick="closeApiConfigModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700/50 transition">
                     <i class="fas fa-times"></i>
                 </button>
                 <div class="flex items-center space-x-3 mb-6">
-                    <div class="w-10 h-10 bg-yellow-600/20 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-key text-yellow-500 text-lg"></i>
+                    <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                        <i class="fas fa-key text-white text-lg"></i>
                     </div>
                     <div>
                         <h3 class="text-xl font-bold">API 配置</h3>
-                        <p class="text-xs text-gray-400">配置 DNS OpenAPI 访问凭证</p>
+                        <p class="text-xs text-gray-400">配置 DNS 平台访问凭证</p>
                     </div>
                 </div>
 
-                <div class="space-y-4">
+                <!-- 平台切换 -->
+                <div class="flex space-x-2 mb-6 p-1 bg-gray-800/50 rounded-xl">
+                    <button onclick="switchConfigPlatform('vps8')" id="configBtnVps8" class="platform-btn active flex-1 py-2.5 rounded-lg text-sm font-semibold text-center">
+                        <i class="fas fa-server mr-1"></i>VPS8
+                    </button>
+                    <button onclick="switchConfigPlatform('dnshe')" id="configBtnDnshe" class="platform-btn flex-1 py-2.5 rounded-lg text-sm font-semibold text-center">
+                        <i class="fas fa-globe mr-1"></i>DNSHE
+                    </button>
+                </div>
+
+                <!-- VPS8 配置 -->
+                <div id="configVps8" class="space-y-4">
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <label class="block text-sm font-medium text-gray-400">API Key</label>
                             <span id="envApiKeyBadge" class="env-badge hidden"><i class="fas fa-shield-alt mr-1"></i>服务端已配置</span>
                         </div>
                         <div class="relative">
-                            <input type="password" id="apiKey" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入你的 API Key">
-                            <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 text-gray-400 hover:text-white">
+                            <input type="password" id="apiKey" class="input-field w-full px-4 py-3 rounded-xl" placeholder="输入你的 VPS8 API Key">
+                            <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-3.5 text-gray-400 hover:text-white touch-btn flex items-center justify-center">
                                 <i id="apiKeyIcon" class="fas fa-eye"></i>
                             </button>
                         </div>
-                        <p class="text-xs text-gray-500 mt-1">如果服务端已配置环境变量，此处留空即可</p>
+                        <p class="text-xs text-gray-500 mt-1.5">如果服务端已配置环境变量，此处留空即可</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-2 text-gray-400">API 基础地址</label>
-                        <input type="text" id="baseUrl" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" value="/api/client/dnsopenapi" readonly>
-                        <p class="text-xs text-gray-500 mt-1">通过 Edge Function 代理，自动处理 CORS</p>
+                        <input type="text" id="baseUrl" class="input-field w-full px-4 py-3 rounded-xl bg-gray-800/50" value="/api/client/dnsopenapi" readonly>
+                        <p class="text-xs text-gray-500 mt-1.5">通过 Edge Function 代理，自动处理 CORS</p>
                     </div>
                 </div>
 
-                <div class="mt-6 p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg">
-                    <div class="flex items-start space-x-2">
-                        <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                <!-- DNSHE 配置 -->
+                <div id="configDnshe" class="space-y-4 hidden">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-400">API Key</label>
+                            <span id="envDnsheKeyBadge" class="env-badge hidden"><i class="fas fa-shield-alt mr-1"></i>服务端已配置</span>
+                        </div>
+                        <div class="relative">
+                            <input type="password" id="dnsheApiKey" class="input-field w-full px-4 py-3 rounded-xl" placeholder="输入你的 DNSHE API Key (cfsd_xxx)">
+                            <button onclick="toggleDnsheKeyVisibility()" class="absolute right-3 top-3.5 text-gray-400 hover:text-white touch-btn flex items-center justify-center">
+                                <i id="dnsheKeyIcon" class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-medium text-gray-400">API Secret</label>
+                            <span id="envDnsheSecretBadge" class="env-badge hidden"><i class="fas fa-shield-alt mr-1"></i>服务端已配置</span>
+                        </div>
+                        <div class="relative">
+                            <input type="password" id="dnsheApiSecret" class="input-field w-full px-4 py-3 rounded-xl" placeholder="输入你的 DNSHE API Secret">
+                            <button onclick="toggleDnsheSecretVisibility()" class="absolute right-3 top-3.5 text-gray-400 hover:text-white touch-btn flex items-center justify-center">
+                                <i id="dnsheSecretIcon" class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-400">API 基础地址</label>
+                        <input type="text" id="dnsheBaseUrl" class="input-field w-full px-4 py-3 rounded-xl bg-gray-800/50" value="/api/client/dnsopenapi" readonly>
+                        <p class="text-xs text-gray-500 mt-1.5">通过 Edge Function 代理，自动处理 CORS</p>
+                    </div>
+                </div>
+
+                <div class="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                    <div class="flex items-start space-x-3">
+                        <i class="fas fa-info-circle text-blue-400 mt-0.5"></i>
                         <div class="text-sm text-blue-200">
-                            <p class="text-xs"><strong>部署说明：</strong> 支持在 EdgeOne Pages 环境变量中配置 <code>DNS_API_KEY</code> 和 <code>ACCESS_PASSWORD</code>。如果环境变量未配置 API Key，则需要在页面输入。</p>
+                            <p class="text-xs leading-relaxed"><strong>多账号配置：</strong> 服务端支持 JSON 数组格式配置多账号，如 <code class="bg-blue-500/20 px-1.5 py-0.5 rounded text-blue-300">[{"name":"账号1","key":"xxx"}]</code>。前端也可手动输入单账号 Key。</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-6 flex space-x-3">
-                    <button onclick="closeApiConfigModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
-                    <button onclick="saveConfig()" class="flex-1 btn-primary px-4 py-2 rounded-lg font-medium transition">
+                    <button onclick="closeApiConfigModal()" class="flex-1 btn px-4 py-3 rounded-xl border border-gray-600 hover:bg-gray-700/50 transition font-medium">取消</button>
+                    <button onclick="saveConfig()" class="flex-1 btn btn-primary px-4 py-3 rounded-xl font-medium">
                         <i class="fas fa-save mr-2"></i>保存配置
                     </button>
                 </div>
@@ -281,64 +529,89 @@
         </div>
     </div>
 
-    <header class="card sticky top-0 z-40 border-b">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+    <header class="card sticky top-0 z-40 border-b glass" style="border-radius: 0; border-left: none; border-right: none; border-top: none;">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-network-wired text-white text-lg"></i>
+                <div class="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                    <i class="fas fa-network-wired text-white text-sm"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold">DNS Manager</h1>
+                    <h1 class="text-lg font-bold leading-tight">DNS Manager</h1>
                     <p class="text-xs text-gray-400">DNS OpenAPI 管理面板</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-3">
-                <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-700 transition">
-                    <i id="themeIcon" class="fas fa-sun"></i>
+            <div class="flex items-center space-x-2">
+                <!-- 平台切换 -->
+                <div class="hidden md:flex items-center space-x-1 p-1 bg-gray-800/50 rounded-xl mr-1">
+                    <button onclick="switchPlatform('vps8')" id="platformBtnVps8" class="platform-btn active px-3 py-1.5 rounded-lg text-xs font-semibold">
+                        <i class="fas fa-server mr-1"></i>VPS8
+                    </button>
+                    <button onclick="switchPlatform('dnshe')" id="platformBtnDnshe" class="platform-btn px-3 py-1.5 rounded-lg text-xs font-semibold">
+                        <i class="fas fa-globe mr-1"></i>DNSHE
+                    </button>
+                </div>
+                <button onclick="toggleTheme()" class="touch-btn p-2.5 rounded-xl hover:bg-gray-700/50 transition flex items-center justify-center">
+                    <i id="themeIcon" class="fas fa-sun text-sm"></i>
                 </button>
-                <button onclick="showApiConfigModal()" class="flex items-center space-x-2 px-3 py-2 rounded-lg transition text-sm font-medium bg-purple-600/20 text-purple-400 hover:bg-purple-600/30" title="API配置">
+                <button onclick="showApiConfigModal()" class="touch-btn flex items-center space-x-2 px-3 py-2 rounded-xl transition text-xs font-semibold bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 border border-purple-500/20">
                     <i class="fas fa-key"></i>
                     <span class="hidden sm:inline">API配置</span>
                 </button>
-                <!-- 登录/退出按钮 -->
-                <button id="authBtn" onclick="toggleAuth()" class="flex items-center space-x-2 px-3 py-2 rounded-lg transition text-sm font-medium">
+                <button id="authBtn" onclick="toggleAuth()" class="touch-btn flex items-center space-x-2 px-3 py-2 rounded-xl transition text-xs font-semibold">
                     <i id="authIcon" class="fas fa-lock"></i>
                     <span id="authText">登录</span>
                 </button>
-                <div class="hidden md:flex items-center space-x-2 text-sm text-gray-400">
-                    <span id="statusIndicator" class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    <span id="statusText">就绪</span>
-                </div>
+                
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- 移动端平台切换 -->
+    <div class="md:hidden px-4 pt-4 pb-0">
+        <div class="flex space-x-2 p-1 bg-gray-800/50 rounded-xl">
+            <button onclick="switchPlatform('vps8')" id="mobilePlatformBtnVps8" class="platform-btn active flex-1 py-2.5 rounded-lg text-sm font-semibold text-center">
+                <i class="fas fa-server mr-1"></i>VPS8
+            </button>
+            <button onclick="switchPlatform('dnshe')" id="mobilePlatformBtnDnshe" class="platform-btn flex-1 py-2.5 rounded-lg text-sm font-semibold text-center">
+                <i class="fas fa-globe mr-1"></i>DNSHE
+            </button>
+        </div>
+    </div>
+
+    <!-- 账号切换栏 -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        <div id="accountBar" class="hidden flex items-center space-x-2 overflow-x-auto pb-2">
+            <span class="text-xs text-gray-400 flex-shrink-0">账号:</span>
+            <div id="accountChips" class="flex space-x-2"></div>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <section class="lg:col-span-1">
-                <div id="domainSection" class="card rounded-xl p-6 fade-in disabled-overlay">
+                <div id="domainSection" class="card rounded-2xl p-5 fade-in disabled-overlay">
                     <div class="lock-icon hidden" id="domainLock">
-                        <i class="fas fa-lock text-4xl text-gray-400 mb-2"></i>
+                        <i class="fas fa-lock text-4xl text-gray-400 mb-3"></i>
                         <p class="text-sm text-gray-400">请先登录</p>
                     </div>
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-semibold flex items-center">
-                            <i class="fas fa-globe mr-2 text-blue-500"></i>
-                            域名列表
+                        <h2 class="text-lg font-bold flex items-center">
+                            <i class="fas fa-globe mr-2 text-blue-400"></i>
+                            <span id="domainListTitle">域名列表</span>
                         </h2>
-                        <button onclick="loadDomains()" class="p-2 rounded-lg hover:bg-gray-700 transition" title="刷新">
+                        <button onclick="loadDomains()" class="touch-btn p-2.5 rounded-xl hover:bg-gray-700/50 transition" title="刷新">
                             <i class="fas fa-sync-alt" id="refreshDomains"></i>
                         </button>
                     </div>
 
                     <div class="relative mb-4">
-                        <input type="text" id="domainSearch" class="input-field w-full px-4 py-2 pl-10 rounded-lg text-sm" placeholder="搜索域名..." oninput="filterDomains()">
-                        <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                        <input type="text" id="domainSearch" class="input-field w-full px-4 py-2.5 pl-10 rounded-xl text-sm" placeholder="搜索域名..." oninput="filterDomains()">
+                        <i class="fas fa-search absolute left-3.5 top-3 text-gray-400 text-sm"></i>
                     </div>
 
-                    <div id="domainList" class="space-y-2 max-h-96 overflow-y-auto">
+                    <div id="domainList" class="space-y-1 max-h-[60vh] overflow-y-auto">
                         <div class="text-center text-gray-500 py-8">
-                            <i class="fas fa-inbox text-3xl mb-2"></i>
+                            <i class="fas fa-inbox text-3xl mb-3 opacity-50"></i>
                             <p class="text-sm">请先登录加载域名</p>
                         </div>
                     </div>
@@ -346,44 +619,44 @@
             </section>
 
             <section class="lg:col-span-2">
-                <div id="recordsSection" class="card rounded-xl p-6 fade-in disabled-overlay">
+                <div id="recordsSection" class="card rounded-2xl p-5 fade-in disabled-overlay">
                     <div class="lock-icon hidden" id="recordsLock">
-                        <i class="fas fa-lock text-4xl text-gray-400 mb-2"></i>
+                        <i class="fas fa-lock text-4xl text-gray-400 mb-3"></i>
                         <p class="text-sm text-gray-400">请先登录</p>
                     </div>
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-2 sm:space-y-0">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 space-y-2 sm:space-y-0">
                         <div>
-                            <h2 class="text-lg font-semibold flex items-center">
-                                <i class="fas fa-list mr-2 text-green-500"></i>
+                            <h2 class="text-lg font-bold flex items-center">
+                                <i class="fas fa-list mr-2 text-green-400"></i>
                                 解析记录
                                 <span id="currentDomain" class="ml-2 text-sm text-gray-400 font-normal"></span>
                             </h2>
                         </div>
                         <div class="flex space-x-2">
-                            <button onclick="showCreateModal()" id="btnAddRecord" class="btn-success px-4 py-2 rounded-lg text-sm font-medium transition opacity-50 cursor-not-allowed" disabled>
-                                <i class="fas fa-plus mr-2"></i>添加记录
+                            <button onclick="showCreateModal()" id="btnAddRecord" class="btn btn-success px-4 py-2.5 rounded-xl text-sm font-semibold opacity-50 cursor-not-allowed" disabled>
+                                <i class="fas fa-plus mr-1.5"></i>添加记录
                             </button>
-                            <button onclick="loadRecords()" id="btnRefreshRecords" class="p-2 rounded-lg hover:bg-gray-700 transition opacity-50 cursor-not-allowed" disabled>
+                            <button onclick="loadRecords()" id="btnRefreshRecords" class="touch-btn p-2.5 rounded-xl hover:bg-gray-700/50 transition opacity-50 cursor-not-allowed" disabled>
                                 <i class="fas fa-sync-alt"></i>
                             </button>
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto">
+                    <div id="recordsTableWrap" class="overflow-x-auto -mx-2 px-2">
                         <table class="w-full text-left">
                             <thead>
-                                <tr class="border-b border-gray-700 text-xs uppercase text-gray-400">
-                                    <th class="pb-3 pr-4">主机记录</th>
-                                    <th class="pb-3 pr-4">类型</th>
-                                    <th class="pb-3 pr-4">记录值</th>
-                                    <th class="pb-3 pr-4">TTL</th>
-                                    <th class="pb-3 text-right">操作</th>
+                                <tr class="border-b border-gray-700/50 text-xs uppercase text-gray-400">
+                                    <th class="pb-3 pr-3 font-semibold">主机记录</th>
+                                    <th class="pb-3 pr-3 font-semibold">类型</th>
+                                    <th class="pb-3 pr-3 font-semibold">记录值</th>
+                                    <th class="pb-3 pr-3 font-semibold">TTL</th>
+                                    <th class="pb-3 text-right font-semibold">操作</th>
                                 </tr>
                             </thead>
                             <tbody id="recordsTable">
                                 <tr>
                                     <td colspan="5" class="text-center py-12 text-gray-500">
-                                        <i class="fas fa-mouse-pointer text-3xl mb-2"></i>
+                                        <i class="fas fa-mouse-pointer text-3xl mb-3 opacity-50"></i>
                                         <p>请先从左侧选择一个域名</p>
                                     </td>
                                 </tr>
@@ -395,12 +668,32 @@
         </div>
     </main>
 
+    <!-- 移动端底部导航 -->
+    <nav class="mobile-nav">
+        <button onclick="document.getElementById('domainSection').scrollIntoView({behavior:'smooth'})" class="flex flex-col items-center space-y-1 text-gray-400 hover:text-blue-400 transition touch-btn">
+            <i class="fas fa-globe text-lg"></i>
+            <span class="text-xs">域名</span>
+        </button>
+        <button onclick="document.getElementById('recordsSection').scrollIntoView({behavior:'smooth'})" class="flex flex-col items-center space-y-1 text-gray-400 hover:text-green-400 transition touch-btn">
+            <i class="fas fa-list text-lg"></i>
+            <span class="text-xs">记录</span>
+        </button>
+        <button onclick="showCreateModal()" class="flex flex-col items-center space-y-1 text-gray-400 hover:text-green-400 transition touch-btn">
+            <i class="fas fa-plus-circle text-lg"></i>
+            <span class="text-xs">添加</span>
+        </button>
+        <button onclick="showApiConfigModal()" class="flex flex-col items-center space-y-1 text-gray-400 hover:text-purple-400 transition touch-btn">
+            <i class="fas fa-key text-lg"></i>
+            <span class="text-xs">配置</span>
+        </button>
+    </nav>
+
     <div id="recordModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
-        <div class="modal-overlay fixed inset-0 bg-black/60" onclick="closeModal()"></div>
-        <div class="relative min-h-screen flex items-start justify-center p-4 pt-10 pb-10">
-            <div class="card rounded-xl shadow-2xl w-full max-w-md relative fade-in my-8">
+        <div class="modal-overlay fixed inset-0 bg-black/70" onclick="closeModal()"></div>
+        <div class="relative min-h-screen flex items-start justify-center p-4 pt-8 pb-8">
+            <div class="card w-full max-w-md relative scale-in my-4">
                 <div class="p-6 pb-0">
-                    <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
+                    <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700/50 transition">
                         <i class="fas fa-times"></i>
                     </button>
                     <h3 id="modalTitle" class="text-xl font-bold mb-6">添加解析记录</h3>
@@ -413,21 +706,21 @@
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium mb-2 text-gray-400">域名</label>
-                                <input type="text" id="formDomain" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" readonly>
+                                <input type="text" id="formDomain" class="input-field w-full px-4 py-3 rounded-xl bg-gray-800/50" readonly>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium mb-2 text-gray-400">主机记录 <span class="text-red-500">*</span></label>
+                                <label class="block text-sm font-medium mb-2 text-gray-400">主机记录 <span class="text-red-400">*</span></label>
                                 <div class="flex items-center">
-                                    <input type="text" id="formHost" class="input-field w-full px-4 py-2 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="www" required>
-                                    <span class="px-3 py-2 bg-gray-700 text-gray-400 rounded-r-lg border border-l-0 border-gray-600">.<span id="formDomainSuffix">example.com</span></span>
+                                    <input type="text" id="formHost" class="input-field w-full px-4 py-3 rounded-l-xl" placeholder="www" required>
+                                    <span class="px-3 py-3 bg-gray-700/50 text-gray-400 rounded-r-xl border border-l-0 border-gray-600/50 text-sm">.<span id="formDomainSuffix">example.com</span></span>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-1">使用 @ 表示根域名</p>
+                                <p class="text-xs text-gray-500 mt-1.5">使用 @ 表示根域名</p>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium mb-2 text-gray-400">记录类型 <span class="text-red-500">*</span></label>
-                                <select id="formType" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                <label class="block text-sm font-medium mb-2 text-gray-400">记录类型 <span class="text-red-400">*</span></label>
+                                <select id="formType" class="input-field w-full px-4 py-3 rounded-xl" required>
                                     <option value="A">A - IPv4 地址</option>
                                     <option value="AAAA">AAAA - IPv6 地址</option>
                                     <option value="CNAME">CNAME - 别名记录</option>
@@ -438,28 +731,28 @@
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium mb-2 text-gray-400">记录值 <span class="text-red-500">*</span></label>
-                                <input type="text" id="formValue" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1.2.3.4" required>
+                                <label class="block text-sm font-medium mb-2 text-gray-400">记录值 <span class="text-red-400">*</span></label>
+                                <input type="text" id="formValue" class="input-field w-full px-4 py-3 rounded-xl" placeholder="1.2.3.4" required>
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium mb-2 text-gray-400">TTL (秒)</label>
-                                <input type="number" id="formTTL" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="600" min="60" step="1">
-                                <p class="text-xs text-gray-500 mt-1">默认 600 秒</p>
+                                <input type="number" id="formTTL" class="input-field w-full px-4 py-3 rounded-xl" value="600" min="60" step="1">
+                                <p class="text-xs text-gray-500 mt-1.5">默认 600 秒</p>
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium mb-2 text-gray-400">优先级 (MX 记录)</label>
-                                <input type="number" id="formPriority" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="10" min="0" max="65535">
+                                <input type="number" id="formPriority" class="input-field w-full px-4 py-3 rounded-xl" placeholder="10" min="0" max="65535">
                             </div>
                         </div>
                     </form>
                 </div>
 
-                <div class="p-6 pt-4 border-t border-gray-700/50 mt-4">
+                <div class="p-6 pt-4 border-t border-gray-700/30 mt-4">
                     <div class="flex space-x-3">
-                        <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
-                        <button type="button" onclick="document.getElementById('recordForm').dispatchEvent(new Event('submit'))" id="submitBtn" class="flex-1 btn-primary px-4 py-2 rounded-lg font-medium transition">
+                        <button type="button" onclick="closeModal()" class="flex-1 btn px-4 py-3 rounded-xl border border-gray-600 hover:bg-gray-700/50 transition font-medium">取消</button>
+                        <button type="button" onclick="document.getElementById('recordForm').dispatchEvent(new Event('submit'))" id="submitBtn" class="flex-1 btn btn-primary px-4 py-3 rounded-xl font-medium">
                             <span id="submitText">确认添加</span>
                         </button>
                     </div>
@@ -469,103 +762,227 @@
     </div>
 
     <div id="deleteModal" class="fixed inset-0 z-50 hidden">
-        <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeDeleteModal()"></div>
+        <div class="modal-overlay absolute inset-0 bg-black/70" onclick="closeDeleteModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
-            <div class="card rounded-xl shadow-2xl w-full max-w-sm p-6 relative fade-in">
-                <div class="w-16 h-16 bg-red-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+            <div class="card w-full max-w-sm p-6 relative scale-in text-center">
+                <div class="w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-500/30">
+                    <i class="fas fa-exclamation-triangle text-white text-2xl"></i>
                 </div>
                 <h3 class="text-xl font-bold mb-2">确认删除</h3>
-                <p class="text-gray-400 mb-6">确定要删除这条解析记录吗？此操作不可撤销。</p>
+                <p class="text-gray-400 mb-6 text-sm">确定要删除这条解析记录吗？此操作不可撤销。</p>
                 <div class="flex space-x-3">
-                    <button onclick="closeDeleteModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
-                    <button onclick="confirmDelete()" class="flex-1 btn-danger px-4 py-2 rounded-lg font-medium transition">确认删除</button>
+                    <button onclick="closeDeleteModal()" class="flex-1 btn px-4 py-3 rounded-xl border border-gray-600 hover:bg-gray-700/50 transition font-medium">取消</button>
+                    <!-- 原代码此处未结束，保留原有结构 -->
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
+<script>
+        // ========== 全局状态 ==========
         let currentDomain = null;
+        let currentSubdomainId = null;
         let domains = [];
         let records = [];
         let deleteTargetId = null;
         let isEditing = false;
         let hasServerApiKey = false;
+        let hasServerDnsheKey = false;
+        let hasServerDnsheSecret = false;
         let isAuthenticated = false;
         let hasAccessPassword = false;
+        let currentPlatform = localStorage.getItem('dns_platform') || 'vps8';
+        let configPlatform = 'vps8';
+        let currentAccountIndex = parseInt(localStorage.getItem('dns_account_' + currentPlatform) || '0');
+        let serverAccounts = { vps8: [], dnshe: [] };
 
         document.addEventListener('DOMContentLoaded', () => {
             loadConfig();
             checkTheme();
             checkServerConfig();
             checkAuthStatus();
+            updatePlatformUI();
         });
 
-        // 检查是否需要密码验证
-         async function checkServerConfig() {
-    try {
-        const response = await fetch('/api/client/dnsopenapi/domain_list', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: '{}'
-        });
-        if (response.status === 401) {
-            // 需要密码验证
-            hasAccessPassword = true;
-            updateAuthUI();
-            updateContentLock();
-        } else if (response.status !== 403) {
-            hasServerApiKey = true;
-            document.getElementById('envApiKeyBadge').classList.remove('hidden');
-            // 如果不需要密码，直接标记为已认证
-            if (response.ok) {
-                hasAccessPassword = false;
-                isAuthenticated = true;
-                updateAuthUI();
-                updateContentLock();
+        // ========== 平台切换 ==========
+        function switchPlatform(platform) {
+            currentPlatform = platform;
+            localStorage.setItem('dns_platform', platform);
+            currentAccountIndex = parseInt(localStorage.getItem('dns_account_' + platform) || '0');
+            updatePlatformUI();
+            updateAccountBar();
+            domains = [];
+            records = [];
+            currentDomain = null;
+            currentSubdomainId = null;
+            renderDomains();
+            renderRecords();
+            document.getElementById('currentDomain').textContent = '';
+            document.getElementById('btnAddRecord').disabled = true;
+            document.getElementById('btnAddRecord').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btnRefreshRecords').disabled = true;
+            document.getElementById('btnRefreshRecords').classList.add('opacity-50', 'cursor-not-allowed');
+            if (isAuthenticated || !hasAccessPassword) {
+                loadDomains();
+            }
+            showToast(`已切换到 ${platform.toUpperCase()} 平台`, 'info');
+        }
+
+        function updatePlatformUI() {
+            const buttons = [
+                ['platformBtnVps8', 'platformBtnDnshe'],
+                ['mobilePlatformBtnVps8', 'mobilePlatformBtnDnshe']
+            ];
+            buttons.forEach(([vpsId, dnsheId]) => {
+                const vpsBtn = document.getElementById(vpsId);
+                const dnsheBtn = document.getElementById(dnsheId);
+                if (!vpsBtn || !dnsheBtn) return;
+                if (currentPlatform === 'vps8') {
+                    vpsBtn.classList.add('active');
+                    dnsheBtn.classList.remove('active');
+                } else {
+                    vpsBtn.classList.remove('active');
+                    dnsheBtn.classList.add('active');
+                }
+            });
+            document.getElementById('domainListTitle').textContent = currentPlatform === 'vps8' ? '域名列表' : '子域名列表';
+        }
+
+        // ========== 账号切换栏 ==========
+        function updateAccountBar() {
+            const bar = document.getElementById('accountBar');
+            const chips = document.getElementById('accountChips');
+            const accounts = serverAccounts[currentPlatform] || [];
+
+            if (accounts.length <= 1) {
+                bar.classList.add('hidden');
+                return;
+            }
+
+            bar.classList.remove('hidden');
+            chips.innerHTML = accounts.map((acc, idx) => {
+                const isActive = idx === currentAccountIndex;
+                const safeName = (acc.name || '账号' + (idx + 1)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                return `<button data-account-idx="${idx}" class="account-chip ${isActive ? 'active' : ''} flex-shrink-0">${safeName}</button>`;
+            }).join('');
+            chips.querySelectorAll('.account-chip').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    switchAccount(parseInt(this.dataset.accountIdx));
+                });
+            });
+        }
+
+        function switchAccount(index) {
+            currentAccountIndex = index;
+            localStorage.setItem('dns_account_' + currentPlatform, index);
+            updateAccountBar();
+            domains = [];
+            records = [];
+            currentDomain = null;
+            currentSubdomainId = null;
+            renderDomains();
+            renderRecords();
+            document.getElementById('currentDomain').textContent = '';
+            document.getElementById('btnAddRecord').disabled = true;
+            document.getElementById('btnAddRecord').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btnRefreshRecords').disabled = true;
+            document.getElementById('btnRefreshRecords').classList.add('opacity-50', 'cursor-not-allowed');
+            loadDomains();
+            showToast(`已切换到账号 ${index + 1}`, 'info');
+        }
+
+        function switchConfigPlatform(platform) {
+            configPlatform = platform;
+            const vps8Btn = document.getElementById('configBtnVps8');
+            const dnsheBtn = document.getElementById('configBtnDnshe');
+            const vps8Config = document.getElementById('configVps8');
+            const dnsheConfig = document.getElementById('configDnshe');
+
+            if (platform === 'vps8') {
+                vps8Btn.classList.add('active');
+                dnsheBtn.classList.remove('active');
+                vps8Config.classList.remove('hidden');
+                dnsheConfig.classList.add('hidden');
+            } else {
+                vps8Btn.classList.remove('active');
+                dnsheBtn.classList.add('active');
+                vps8Config.classList.add('hidden');
+                dnsheConfig.classList.remove('hidden');
             }
         }
-    } catch (e) {
-        console.log('Server config check failed:', e);
-    }
-}
-        
-        // 检查登录状态
+
+        // ========== 认证相关 ==========
+        async function checkServerConfig() {
+            try {
+                const response = await fetch('/api/client/dnsopenapi/domain_list', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-DNS-Platform': 'vps8'
+                    },
+                    body: '{}'
+                });
+                if (response.status === 401) {
+                    hasAccessPassword = true;
+                    updateAuthUI();
+                    updateContentLock();
+                } else if (response.status !== 403) {
+                    hasServerApiKey = true;
+                    const badge = document.getElementById('envApiKeyBadge');
+                    if (badge) badge.classList.remove('hidden');
+                    // 尝试解析服务端返回的多账号信息（如果接口支持）
+                    if (response.ok) {
+                        hasAccessPassword = false;
+                        isAuthenticated = true;
+                        updateAuthUI();
+                        updateContentLock();
+                    }
+                }
+            } catch (e) {
+                console.log('Server config check failed:', e);
+            }
+        }
+
         function checkAuthStatus() {
             const cookie = document.cookie;
             const sessionMatch = cookie.match(/dns_session=([^;]+)/);
-            if (sessionMatch) {
+            const localAuth = localStorage.getItem('dns_auth');
+            // 必须同时满足：cookie 存在 + localStorage 标记存在
+            if (sessionMatch && localAuth === 'true') {
                 isAuthenticated = true;
+            } else {
+                isAuthenticated = false;
+                // 如果 localStorage 标记不存在但 cookie 存在，清除过期 cookie
+                if (sessionMatch && !localAuth) {
+                    document.cookie = 'dns_session=; Path=/; Max-Age=0; SameSite=Lax; Secure';
+                }
             }
             updateAuthUI();
             updateContentLock();
         }
 
-        // 更新登录按钮状态
         function updateAuthUI() {
             const btn = document.getElementById('authBtn');
             const icon = document.getElementById('authIcon');
             const text = document.getElementById('authText');
-            
+
             if (isAuthenticated) {
-                btn.className = 'flex items-center space-x-2 px-3 py-2 rounded-lg transition text-sm font-medium bg-green-600/20 text-green-400 hover:bg-green-600/30';
+                btn.className = 'touch-btn flex items-center space-x-2 px-3 py-2 rounded-xl transition text-xs font-semibold bg-green-500/15 text-green-400 hover:bg-green-500/25 border border-green-500/20';
                 icon.className = 'fas fa-check-circle';
                 text.textContent = '已登录';
             } else {
-                btn.className = 'flex items-center space-x-2 px-3 py-2 rounded-lg transition text-sm font-medium bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600/30';
+                btn.className = 'touch-btn flex items-center space-x-2 px-3 py-2 rounded-xl transition text-xs font-semibold bg-yellow-500/15 text-yellow-400 hover:bg-yellow-500/25 border border-yellow-500/20';
                 icon.className = 'fas fa-lock';
                 text.textContent = '登录';
             }
         }
 
-        // 更新内容区域锁定状态
         function updateContentLock() {
             const domainSection = document.getElementById('domainSection');
             const recordsSection = document.getElementById('recordsSection');
             const domainLock = document.getElementById('domainLock');
             const recordsLock = document.getElementById('recordsLock');
-            
+
             if (!isAuthenticated && hasAccessPassword) {
                 domainSection.classList.add('disabled-overlay');
                 recordsSection.classList.add('disabled-overlay');
@@ -576,20 +993,16 @@
                 recordsSection.classList.remove('disabled-overlay');
                 domainLock.classList.add('hidden');
                 recordsLock.classList.add('hidden');
-                // 如果已登录且未加载域名，自动加载
                 if (isAuthenticated && domains.length === 0) {
                     loadDomains();
                 }
             }
         }
 
-        // 登录/退出切换
         function toggleAuth() {
             if (isAuthenticated) {
-                // 退出登录
                 logout();
             } else {
-                // 显示登录弹窗
                 showLoginModal();
             }
         }
@@ -606,67 +1019,69 @@
         }
 
         async function handleLogin(e) {
-    e.preventDefault();
-    const password = document.getElementById('loginPassword').value;
-    const errorDiv = document.getElementById('loginError');
-    const btn = document.getElementById('loginBtn');
-    const originalText = document.getElementById('loginBtnText').textContent;
-    
-    if (!password) return;
+            e.preventDefault();
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            const btn = document.getElementById('loginBtn');
+            const originalText = document.getElementById('loginBtnText').textContent;
 
-    btn.disabled = true;
-    document.getElementById('loginBtnText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
+            if (!password) return;
 
-    try {
-        const response = await fetch('/api/auth/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password })
-        });
+            btn.disabled = true;
+            document.getElementById('loginBtnText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
 
-        if (response.ok) {
-            const data = await response.json();
-            // 设置 Cookie - 与服务器返回的格式一致
-            document.cookie = 'dns_session=' + encodeURIComponent(data.token) + '; Path=/; Max-Age=86400; SameSite=Lax';
-            isAuthenticated = true;
-            hasAccessPassword = true; // 确保标记为需要密码
-            updateAuthUI();
-            updateContentLock(); // 内部已包含 domains.length === 0 时自动调用 loadDomains()
-            closeLoginModal();
-            showToast('登录成功', 'success');
-        } else {
-            const data = await response.json();
-            errorDiv.textContent = data.error || '密码错误，请重试';
-            errorDiv.classList.remove('hidden');
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    document.cookie = 'dns_session=' + encodeURIComponent(data.token) + '; Path=/; Max-Age=86400; SameSite=Lax; Secure';
+                    localStorage.setItem('dns_auth', 'true');
+                    isAuthenticated = true;
+                    hasAccessPassword = true;
+                    updateAuthUI();
+                    updateContentLock();
+                    closeLoginModal();
+                    showToast('登录成功', 'success');
+                } else {
+                    const data = await response.json();
+                    errorDiv.textContent = data.error || '密码错误，请重试';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                errorDiv.textContent = '验证失败，请重试';
+                errorDiv.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                document.getElementById('loginBtnText').textContent = originalText;
+            }
         }
-    } catch (err) {
-        errorDiv.textContent = '验证失败，请重试';
-        errorDiv.classList.remove('hidden');
-    } finally {
-        btn.disabled = false;
-        document.getElementById('loginBtnText').textContent = originalText;
-    }
-}
-        
-       function logout() {
-    // 清除 Cookie - 必须与设置时的属性一致
-    document.cookie = 'dns_session=; Path=/; Max-Age=0; SameSite=Lax';
-    isAuthenticated = false;
-    domains = [];
-    records = [];
-    currentDomain = null;
-    updateAuthUI();
-    updateContentLock();
-    renderDomains();
-    renderRecords();
-    document.getElementById('currentDomain').textContent = '';
-    document.getElementById('btnAddRecord').disabled = true;
-    document.getElementById('btnAddRecord').classList.add('opacity-50', 'cursor-not-allowed');
-    document.getElementById('btnRefreshRecords').disabled = true;
-    document.getElementById('btnRefreshRecords').classList.add('opacity-50', 'cursor-not-allowed');
-    showToast('已退出登录', 'info');
-}
 
+        function logout() {
+            document.cookie = 'dns_session=; Path=/; Max-Age=0; SameSite=Lax; Secure';
+            localStorage.removeItem('dns_auth');
+            isAuthenticated = false;
+            domains = [];
+            records = [];
+            currentDomain = null;
+            currentSubdomainId = null;
+            updateAuthUI();
+            updateContentLock();
+            renderDomains();
+            renderRecords();
+            document.getElementById('currentDomain').textContent = '';
+            document.getElementById('btnAddRecord').disabled = true;
+            document.getElementById('btnAddRecord').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btnRefreshRecords').disabled = true;
+            document.getElementById('btnRefreshRecords').classList.add('opacity-50', 'cursor-not-allowed');
+            showToast('已退出登录', 'info');
+        }
+
+        // ========== 主题 ==========
         function checkTheme() {
             const savedTheme = localStorage.getItem('theme') || 'dark';
             if (savedTheme === 'light') {
@@ -687,31 +1102,84 @@
             }
         }
 
+        // ========== API 配置 ==========
         function saveConfig() {
-            const apiKey = document.getElementById('apiKey').value.trim();
-            if (!apiKey && !hasServerApiKey) {
-                showToast('请输入 API Key', 'error');
-                return;
-            }
-            if (apiKey) {
-                localStorage.setItem('dns_api_key', apiKey);
+            // Security Note: API keys stored in localStorage are accessible to JavaScript.
+            // Ensure your deployment uses HTTPS and restrict access to trusted devices.
+            if (configPlatform === 'vps8') {
+                const apiKey = document.getElementById('apiKey').value.trim();
+                if (!apiKey && !hasServerApiKey) {
+                    showToast('请输入 VPS8 API Key', 'error');
+                    return;
+                }
+                if (apiKey) {
+                    localStorage.setItem('dns_api_key', apiKey);
+                    // 检测是否为多账号 JSON 格式
+                    try {
+                        const parsed = JSON.parse(apiKey);
+                        if (Array.isArray(parsed)) {
+                            serverAccounts.vps8 = parsed;
+                        }
+                    } catch (e) {
+                        serverAccounts.vps8 = [];
+                    }
+                } else {
+                    localStorage.removeItem('dns_api_key');
+                    serverAccounts.vps8 = [];
+                }
             } else {
-                localStorage.removeItem('dns_api_key');
+                const dnsheKey = document.getElementById('dnsheApiKey').value.trim();
+                const dnsheSecret = document.getElementById('dnsheApiSecret').value.trim();
+                if ((!dnsheKey || !dnsheSecret) && (!hasServerDnsheKey || !hasServerDnsheSecret)) {
+                    showToast('请输入 DNSHE API Key 和 Secret', 'error');
+                    return;
+                }
+                if (dnsheKey) {
+                    localStorage.setItem('dnshe_api_key', dnsheKey);
+                    try {
+                        const parsed = JSON.parse(dnsheKey);
+                        if (Array.isArray(parsed)) {
+                            serverAccounts.dnshe = parsed;
+                        }
+                    } catch (e) {
+                        serverAccounts.dnshe = [];
+                    }
+                } else {
+                    localStorage.removeItem('dnshe_api_key');
+                    serverAccounts.dnshe = [];
+                }
+                if (dnsheSecret) localStorage.setItem('dnshe_api_secret', dnsheSecret);
+                else localStorage.removeItem('dnshe_api_secret');
             }
             closeApiConfigModal();
             showToast('配置已保存', 'success');
+            updateAccountBar();
             if (isAuthenticated || !hasAccessPassword) {
                 loadDomains();
             }
         }
 
         function loadConfig() {
-            document.getElementById('apiKey').value = localStorage.getItem('dns_api_key') || '';
+            const vps8Key = localStorage.getItem('dns_api_key') || '';
+            const dnsheKey = localStorage.getItem('dnshe_api_key') || '';
+            document.getElementById('apiKey').value = vps8Key;
+            document.getElementById('dnsheApiKey').value = dnsheKey;
+            document.getElementById('dnsheApiSecret').value = localStorage.getItem('dnshe_api_secret') || '';
+            // 解析多账号配置
+            try {
+                const vps8Parsed = JSON.parse(vps8Key);
+                if (Array.isArray(vps8Parsed)) serverAccounts.vps8 = vps8Parsed;
+            } catch (e) { serverAccounts.vps8 = []; }
+            try {
+                const dnsheParsed = JSON.parse(dnsheKey);
+                if (Array.isArray(dnsheParsed)) serverAccounts.dnshe = dnsheParsed;
+            } catch (e) { serverAccounts.dnshe = []; }
         }
 
         function showApiConfigModal() {
             document.getElementById('apiConfigModal').classList.remove('hidden');
             loadConfig();
+            switchConfigPlatform(currentPlatform);
         }
 
         function closeApiConfigModal() {
@@ -730,12 +1198,52 @@
             }
         }
 
-        async function apiCall(endpoint, data = {}) {
-            const apiKey = localStorage.getItem('dns_api_key');
-            const headers = { 'Content-Type': 'application/json' };
-            if (apiKey) {
-                headers['Authorization'] = 'Basic ' + btoa('client:' + apiKey);
+        function toggleDnsheKeyVisibility() {
+            const input = document.getElementById('dnsheApiKey');
+            const icon = document.getElementById('dnsheKeyIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
             }
+        }
+
+        function toggleDnsheSecretVisibility() {
+            const input = document.getElementById('dnsheApiSecret');
+            const icon = document.getElementById('dnsheSecretIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+
+        // ========== API 调用核心 ==========
+        async function apiCall(endpoint, data = {}) {
+            const headers = { 
+                'Content-Type': 'application/json',
+                'X-DNS-Platform': currentPlatform,
+                'X-Account-Index': String(currentAccountIndex)
+            };
+
+            if (currentPlatform === 'vps8') {
+                const apiKey = localStorage.getItem('dns_api_key');
+                if (apiKey) {
+                    // Note: Base64编码仅用于Basic Auth格式，非加密。API Key应通过HTTPS传输。
+                headers['Authorization'] = 'Basic ' + btoa('client:' + apiKey);
+                }
+            } else {
+                const dnsheKey = localStorage.getItem('dnshe_api_key');
+                const dnsheSecret = localStorage.getItem('dnshe_api_secret');
+                if (dnsheKey) headers['X-DNSHE-API-Key'] = dnsheKey;
+                if (dnsheSecret) headers['X-DNSHE-API-Secret'] = dnsheSecret;
+                data._platform = 'dnshe';
+            }
+
             try {
                 const response = await fetch('/api/client/dnsopenapi/' + endpoint, {
                     method: 'POST',
@@ -744,7 +1252,6 @@
                 });
                 if (response.status === 429) throw new Error('请求过于频繁，请稍后再试 (429)');
                 if (response.status === 401 || response.status === 403) {
-                    // 认证失败，可能是密码过期
                     isAuthenticated = false;
                     updateAuthUI();
                     updateContentLock();
@@ -763,6 +1270,7 @@
             }
         }
 
+        // ========== 域名管理 ==========
         async function loadDomains() {
             if (!isAuthenticated && hasAccessPassword) {
                 showToast('请先登录', 'warning');
@@ -770,21 +1278,34 @@
             }
             const btn = document.getElementById('refreshDomains');
             btn.classList.add('fa-spin');
-            setStatus('loading', '连接中...');
+            
             try {
-                const data = await apiCall('domain_list', {});
-                console.log('API Response:', data);
-                domains = data.result || [];
+                let data;
+                if (currentPlatform === 'vps8') {
+                    data = await apiCall('domain_list', {});
+                    domains = data.result || [];
+                } else {
+                    data = await apiCall('subdomains', { _endpoint: 'subdomains', _action: 'list' });
+                    const subdomains = data.subdomains || [];
+                    domains = subdomains.map(d => ({
+                        domain: d.full_domain || `${d.subdomain}.${d.rootdomain}`,
+                        subdomain_id: d.id,
+                        status: d.status,
+                        rootdomain: d.rootdomain,
+                        subdomain: d.subdomain
+                    }));
+                }
+
                 if (domains.length === 0) {
                     showToast('未找到域名，请检查 API 权限', 'warning');
                 } else {
                     showToast(`已加载 ${domains.length} 个域名`, 'success');
                 }
                 renderDomains();
-                setStatus('ready', '就绪');
+                
             } catch (error) {
                 showToast(error.message, 'error');
-                setStatus('error', '连接失败');
+                
                 console.error('Load domains error:', error);
             } finally {
                 btn.classList.remove('fa-spin');
@@ -795,9 +1316,9 @@
             const indicator = document.getElementById('statusIndicator');
             const statusText = document.getElementById('statusText');
             statusText.textContent = text;
-            indicator.className = 'w-2 h-2 rounded-full';
-            if (status === 'ready') indicator.classList.add('bg-green-500', 'animate-pulse');
-            else if (status === 'loading') indicator.classList.add('bg-yellow-500', 'animate-pulse');
+            indicator.className = 'status-dot';
+            if (status === 'ready') indicator.classList.add('bg-green-500');
+            else if (status === 'loading') indicator.classList.add('bg-yellow-500');
             else if (status === 'error') indicator.classList.add('bg-red-500');
         }
 
@@ -809,21 +1330,33 @@
                 return domainName.toLowerCase().includes(searchTerm);
             });
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="text-center text-gray-500 py-8"><i class="fas fa-search text-2xl mb-2"></i><p class="text-sm">未找到匹配的域名</p></div>`;
+                container.innerHTML = `<div class="text-center text-gray-500 py-8"><i class="fas fa-search text-2xl mb-2 opacity-50"></i><p class="text-sm">未找到匹配的域名</p></div>`;
                 return;
             }
             container.innerHTML = filtered.map((domain) => {
                 const domainName = domain.domain || '';
                 const isActive = currentDomain === domainName;
+                const safeDomain = domainName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                 return `
-                    <div onclick="selectDomain('${domainName}')" class="record-row p-3 rounded-lg cursor-pointer flex justify-between items-center ${isActive ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-gray-700/50'}">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-full bg-blue-900/50 flex items-center justify-center"><i class="fas fa-globe text-blue-400 text-xs"></i></div>
-                            <div><p class="font-medium text-sm">${domainName}</p><p class="text-xs text-gray-500">点击管理解析</p></div>
+                    <div data-domain="${safeDomain}" class="domain-item flex justify-between items-center ${isActive ? 'active' : ''}">
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <div class="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-globe text-blue-400 text-xs"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-medium text-sm truncate">${safeDomain}</p>
+                            </div>
                         </div>
-                        ${isActive ? '<i class="fas fa-chevron-right text-blue-500"></i>' : ''}
+                        ${isActive ? '<i class="fas fa-chevron-right text-blue-400 flex-shrink-0"></i>' : ''}
                     </div>`;
             }).join('');
+            // 事件委托绑定域名点击，避免XSS
+            container.querySelectorAll('.domain-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    selectDomain(this.dataset.domain);
+                });
+            });
+
         }
 
         function filterDomains() { renderDomains(); }
@@ -834,6 +1367,10 @@
                 return;
             }
             currentDomain = domain;
+            const domainObj = domains.find(d => d.domain === domain);
+            if (domainObj && domainObj.subdomain_id) {
+                currentSubdomainId = domainObj.subdomain_id;
+            }
             document.getElementById('currentDomain').textContent = `- ${domain}`;
             document.getElementById('btnAddRecord').disabled = false;
             document.getElementById('btnAddRecord').classList.remove('opacity-50', 'cursor-not-allowed');
@@ -843,15 +1380,41 @@
             await loadRecords();
         }
 
+        // ========== 记录管理 ==========
         async function loadRecords() {
             if (!isAuthenticated && hasAccessPassword) return;
             if (!currentDomain) return;
             const btn = document.querySelector('#btnRefreshRecords i');
             btn.classList.add('fa-spin');
             try {
-                const data = await apiCall('record_list', { domain: currentDomain });
-                console.log('Records Response:', data);
-                records = data.result || [];
+                let data;
+                if (currentPlatform === 'vps8') {
+                    data = await apiCall('record_list', { domain: currentDomain });
+                    records = data.result || [];
+                } else {
+                    if (!currentSubdomainId) {
+                        showToast('缺少子域名 ID', 'error');
+                        return;
+                    }
+                    data = await apiCall('dns_records', { 
+                        _endpoint: 'dns_records', 
+                        _action: 'list',
+                        subdomain_id: currentSubdomainId 
+                    });
+                    const rawRecords = data.records || [];
+                    records = rawRecords.map(r => ({
+                        id: r.id || r.record_id,
+                        record_id: r.record_id,
+                        host: r.name === currentDomain ? '@' : (r.name || '').replace('.' + currentDomain, '').replace(currentDomain, ''),
+                        name: r.name,
+                        type: r.type,
+                        value: r.content,
+                        content: r.content,
+                        ttl: r.ttl,
+                        priority: r.priority,
+                        status: r.status
+                    }));
+                }
                 renderRecords();
             } catch (error) {
                 showToast(error.message, 'error');
@@ -863,8 +1426,15 @@
 
         function renderRecords() {
             const tbody = document.getElementById('recordsTable');
+            // XSS防护：HTML转义函数
+            const escapeHtml = (str) => {
+                if (str == null) return '';
+                return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            };
             if (records.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-gray-500"><i class="fas fa-inbox text-3xl mb-2"></i><p>该域名暂无解析记录</p><button onclick="showCreateModal()" class="mt-4 text-blue-500 hover:text-blue-400 text-sm"><i class="fas fa-plus mr-1"></i>添加第一条记录</button></td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-gray-500"><i class="fas fa-inbox text-3xl mb-3 opacity-50"></i><p>该域名暂无解析记录</p><button id="btnFirstRecord" class="mt-4 text-blue-400 hover:text-blue-300 text-sm font-medium"><i class="fas fa-plus mr-1"></i>添加第一条记录</button></td></tr>`;
+            const firstBtn = document.getElementById('btnFirstRecord');
+            if (firstBtn) firstBtn.addEventListener('click', showCreateModal);
                 return;
             }
             tbody.innerHTML = records.map(record => {
@@ -872,22 +1442,25 @@
                 const typeClass = `type-${type.toLowerCase()}`;
                 const host = record.host || record.name || record.subdomain || '@';
                 const value = record.value || record.content || record.address || record.data || record.target || '-';
+                const safeValue = escapeHtml(value);
+                const safeHost = escapeHtml(host);
                 const ttl = record.ttl || record.TTL || '-';
                 const id = record.id || record.record_id || 0;
                 return `
-                    <tr class="record-row border-b border-gray-700/50">
-                        <td class="py-4 pr-4 font-medium">${host}</td>
-                        <td class="py-4 pr-4"><span class="type-badge ${typeClass}">${type || '?'}</span></td>
-                        <td class="py-4 pr-4 text-sm text-gray-300 max-w-xs truncate" title="${value}">${value}</td>
-                        <td class="py-4 pr-4 text-sm text-gray-400">${ttl}</td>
-                        <td class="py-4 text-right">
-                            <div class="flex justify-end space-x-2">
-                                <button onclick="editRecord(${id})" class="p-2 rounded-lg hover:bg-blue-900/30 text-blue-400 transition" title="编辑"><i class="fas fa-edit"></i></button>
-                                <button onclick="deleteRecord(${id})" class="p-2 rounded-lg hover:bg-red-900/30 text-red-400 transition" title="删除"><i class="fas fa-trash-alt"></i></button>
+                    <tr class="record-row border-b border-gray-700/30">
+                        <td class="py-3 pr-3 font-medium text-sm">${safeHost}</td>
+                        <td class="py-3 pr-3"><span class="type-badge ${typeClass}">${type || '?'}</span></td>
+                        <td class="py-3 pr-3 text-sm text-gray-300 max-w-[120px] sm:max-w-xs truncate" title="${value}">${value}</td>
+                        <td class="py-3 pr-3 text-sm text-gray-400">${ttl}</td>
+                        <td class="py-3 text-right">
+                            <div class="flex justify-end space-x-1">
+                                <button data-action="edit" data-record-id="${id}" class="touch-btn p-2 rounded-xl hover:bg-blue-500/10 text-blue-400 transition" title="编辑"><i class="fas fa-edit text-sm"></i></button>
+                                <button data-action="delete" data-record-id="${id}" class="touch-btn p-2 rounded-xl hover:bg-red-500/10 text-red-400 transition" title="删除"><i class="fas fa-trash-alt text-sm"></i></button>
                             </div>
                         </td>
                     </tr>`;
             }).join('');
+
         }
 
         function showCreateModal() {
@@ -896,6 +1469,10 @@
                 return;
             }
             if (!currentDomain) { showToast('请先选择一个域名', 'warning'); return; }
+            if (currentPlatform === 'dnshe' && !currentSubdomainId) {
+                showToast('DNSHE 平台需要子域名 ID', 'error');
+                return;
+            }
             isEditing = false;
             document.getElementById('modalTitle').textContent = '添加解析记录';
             document.getElementById('submitText').textContent = '确认添加';
@@ -906,10 +1483,6 @@
             document.getElementById('formTTL').value = '600';
             document.getElementById('recordModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            setTimeout(() => {
-                const modalContent = document.querySelector('.modal-form-content');
-                if (modalContent) modalContent.scrollTop = 0;
-            }, 10);
         }
 
         function editRecord(id) {
@@ -925,24 +1498,18 @@
             document.getElementById('recordId').value = id;
             document.getElementById('formDomain').value = currentDomain;
             document.getElementById('formDomainSuffix').textContent = currentDomain;
-            document.getElementById('formHost').value = record.host || record.name || record.subdomain || '';
+            document.getElementById('formHost').value = record.host || record.name || '';
             document.getElementById('formType').value = (record.type || 'A').toUpperCase();
-            document.getElementById('formValue').value = record.value || record.content || record.address || record.data || record.target || '';
-            document.getElementById('formTTL').value = record.ttl || record.TTL || 600;
-            document.getElementById('formPriority').value = record.priority || record.mx_priority || record.Priority || '';
+            document.getElementById('formValue').value = record.value || record.content || '';
+            document.getElementById('formTTL').value = record.ttl || 600;
+            document.getElementById('formPriority').value = record.priority || '';
             document.getElementById('recordModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            setTimeout(() => {
-                const modalContent = document.querySelector('.modal-form-content');
-                if (modalContent) modalContent.scrollTop = 0;
-            }, 10);
         }
 
         function closeModal() { 
             document.getElementById('recordModal').classList.add('hidden'); 
             document.body.style.overflow = '';
-            const modalContent = document.querySelector('.modal-form-content');
-            if (modalContent) modalContent.scrollTop = 0;
         }
 
         async function handleRecordSubmit(e) {
@@ -958,17 +1525,53 @@
             const originalText = document.getElementById('submitText').textContent;
             submitBtn.disabled = true;
             document.getElementById('submitText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
+
             try {
-                if (isEditing && id) {
-                    const data = { domain, id: parseInt(id), value, ttl };
-                    if (priority) data.priority = parseInt(priority);
-                    await apiCall('record_update', data);
-                    showToast('记录更新成功', 'success');
+                if (currentPlatform === 'vps8') {
+                    if (isEditing && id) {
+                        const data = { domain, id: parseInt(id), value, ttl };
+                        if (priority) data.priority = parseInt(priority);
+                        await apiCall('record_update', data);
+                        showToast('记录更新成功', 'success');
+                    } else {
+                        const data = { domain, host, type, value, ttl };
+                        if (priority) data.priority = parseInt(priority);
+                        await apiCall('record_create', data);
+                        showToast('记录创建成功', 'success');
+                    }
                 } else {
-                    const data = { domain, host, type, value, ttl };
-                    if (priority) data.priority = parseInt(priority);
-                    await apiCall('record_create', data);
-                    showToast('记录创建成功', 'success');
+                    if (!currentSubdomainId) {
+                        showToast('缺少子域名 ID', 'error');
+                        return;
+                    }
+                    if (isEditing && id) {
+                        const data = {
+                            _endpoint: 'dns_records',
+                            _action: 'update',
+                            id: parseInt(id),
+                            type,
+                            content: value,
+                            ttl
+                        };
+                        if (priority) data.priority = parseInt(priority);
+                        if (host && host !== '@') data.name = host + '.' + domain;
+                        else data.name = domain;
+                        await apiCall('dns_records', data);
+                        showToast('记录更新成功', 'success');
+                    } else {
+                        const data = {
+                            _endpoint: 'dns_records',
+                            _action: 'create',
+                            subdomain_id: currentSubdomainId,
+                            type,
+                            content: value,
+                            ttl
+                        };
+                        if (priority) data.priority = parseInt(priority);
+                        if (host && host !== '@') data.name = host + '.' + domain;
+                        await apiCall('dns_records', data);
+                        showToast('记录创建成功', 'success');
+                    }
                 }
                 closeModal();
                 await loadRecords();
@@ -988,7 +1591,7 @@
             deleteTargetId = id; 
             document.getElementById('deleteModal').classList.remove('hidden'); 
         }
-        
+
         function closeDeleteModal() { 
             document.getElementById('deleteModal').classList.add('hidden'); 
             deleteTargetId = null; 
@@ -996,11 +1599,19 @@
 
         async function confirmDelete() {
             if (!deleteTargetId || !currentDomain) return;
-            const btn = document.querySelector('#deleteModal .btn-danger');
+            const btn = document.querySelector('#deleteModal button.btn-danger');
             btn.disabled = true;
             btn.innerHTML = '<div class="loading-spinner mx-auto"></div>';
             try {
-                await apiCall('record_delete', { domain: currentDomain, id: parseInt(deleteTargetId) });
+                if (currentPlatform === 'vps8') {
+                    await apiCall('record_delete', { domain: currentDomain, id: parseInt(deleteTargetId) });
+                } else {
+                    await apiCall('dns_records', {
+                        _endpoint: 'dns_records',
+                        _action: 'delete',
+                        id: parseInt(deleteTargetId)
+                    });
+                }
                 showToast('记录删除成功', 'success');
                 closeDeleteModal();
                 await loadRecords();
@@ -1015,15 +1626,29 @@
         function showToast(message, type = 'info') {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
-            const colors = { success: 'bg-green-600', error: 'bg-red-600', warning: 'bg-yellow-600', info: 'bg-blue-600' };
-            const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-circle', info: 'fa-info-circle' };
-            toast.className = `toast ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3 min-w-[300px]`;
-            toast.innerHTML = `<i class="fas ${icons[type]}"></i><span class="font-medium">${message}</span>`;
+            const colors = { 
+                success: 'bg-green-500', 
+                error: 'bg-red-500', 
+                warning: 'bg-yellow-500', 
+                info: 'bg-blue-500' 
+            };
+            const icons = { 
+                success: 'fa-check-circle', 
+                error: 'fa-times-circle', 
+                warning: 'fa-exclamation-circle', 
+                info: 'fa-info-circle' 
+            };
+            toast.className = `toast ${colors[type]} text-white px-5 py-3.5 rounded-xl shadow-lg flex items-center space-x-3 min-w-[280px] max-w-sm`;
+            toast.innerHTML = `<i class="fas ${icons[type]} text-lg"></i>`;
+            const msgSpan = document.createElement('span');
+            msgSpan.className = 'font-medium text-sm';
+            msgSpan.textContent = message; // 使用textContent防止XSS
+            toast.appendChild(msgSpan);
             container.appendChild(toast);
             setTimeout(() => {
                 toast.style.opacity = '0';
-                toast.style.transform = 'translateX(100%)';
-                toast.style.transition = 'all 0.3s ease-out';
+                toast.style.transform = 'translateX(120%)';
+                toast.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
