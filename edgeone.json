@@ -4,7 +4,8 @@
   "rewrites": [
     {
       "source": "/*",
-      "destination": "/index.html"
+      "destination": "/index.html",
+      "exclude": ["/api/*", "/api/**/*"]
     }
   ],
   "redirects": [
