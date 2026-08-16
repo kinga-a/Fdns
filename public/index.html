@@ -1063,22 +1063,23 @@ body {
             document.getElementById('loginTotpCode').value = '';
             document.getElementById('loginError').classList.add('hidden');
             
-            // 根据 TOTP 状态调整 UI
-            if (hasTOTP) {
-                document.getElementById('totpInputContainer').classList.remove('hidden');
-                document.getElementById('totpHint').classList.remove('hidden');
-                document.getElementById('loginSubtitle').textContent = '请输入访问密码和 TOTP 验证码';
-            } else {
-                document.getElementById('totpInputContainer').classList.add('hidden');
-                document.getElementById('totpHint').classList.add('hidden');
-                document.getElementById('loginSubtitle').textContent = '请输入访问密码以继续使用 DNS Manager';
-            }
+            // 重置为初始状态：只显示密码输入框
+            document.getElementById('totpInputContainer').classList.add('hidden');
+            document.getElementById('totpHint').classList.add('hidden');
+            document.getElementById('loginSubtitle').textContent = '请输入访问密码以继续使用 DNS Manager';
+            document.getElementById('loginBtnText').textContent = '进入系统';
+            document.getElementById('loginPassword').disabled = false;
             
             setTimeout(() => document.getElementById('loginPassword').focus(), 100);
         }
 
         function closeLoginModal() {
             document.getElementById('loginModal').classList.add('hidden');
+            // 重置状态
+            document.getElementById('totpInputContainer').classList.add('hidden');
+            document.getElementById('totpHint').classList.add('hidden');
+            document.getElementById('loginPassword').disabled = false;
+            document.getElementById('loginBtnText').textContent = '进入系统';
         }
 
         async function handleLogin(e) {
@@ -1113,24 +1114,33 @@ body {
                     showToast('登录成功', 'success');
                 } else {
                     const data = await response.json();
-                    // 如果服务端要求 TOTP，显示 TOTP 输入框
+                    // 如果服务端要求 TOTP，显示 TOTP 输入框（两步验证第二步）
                     if (data.requireTOTP) {
                         document.getElementById('totpInputContainer').classList.remove('hidden');
                         document.getElementById('totpHint').classList.remove('hidden');
-                        document.getElementById('loginSubtitle').textContent = '请输入访问密码和 TOTP 验证码';
+                        document.getElementById('loginSubtitle').textContent = '请输入 TOTP 验证码完成登录';
+                        document.getElementById('loginBtnText').textContent = '验证并登录';
+                        // 禁用密码输入框，防止修改
+                        document.getElementById('loginPassword').disabled = true;
                         setTimeout(() => document.getElementById('loginTotpCode').focus(), 100);
-                        errorDiv.textContent = '请输入 6 位 TOTP 验证码';
+                        errorDiv.textContent = '密码正确，请输入 6 位 TOTP 验证码';
+                        errorDiv.className = 'text-blue-400 text-sm mt-4';
                     } else {
                         errorDiv.textContent = data.error || '密码错误，请重试';
+                        errorDiv.className = 'text-red-500 text-sm mt-4';
                     }
                     errorDiv.classList.remove('hidden');
                 }
             } catch (err) {
                 errorDiv.textContent = '验证失败，请重试';
+                errorDiv.className = 'text-red-500 text-sm mt-4';
                 errorDiv.classList.remove('hidden');
             } finally {
                 btn.disabled = false;
-                document.getElementById('loginBtnText').textContent = originalText;
+                if (document.getElementById('loginBtnText').textContent === '进入系统' || 
+                    document.getElementById('loginBtnText').innerHTML.includes('loading-spinner')) {
+                    document.getElementById('loginBtnText').textContent = originalText;
+                }
             }
         }
 
