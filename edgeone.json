@@ -3,9 +3,12 @@
   "buildCommand": "",
   "rewrites": [
     {
+      "source": "/api/*",
+      "destination": "/api/*"
+    },
+    {
       "source": "/*",
-      "destination": "/index.html",
-      "exclude": ["/api/*", "/api/**/*"]
+      "destination": "/index.html"
     }
   ],
   "redirects": [
