@@ -6,6 +6,8 @@
     <title>DNS Manager - DNS 记录管理</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QRCode.js for TOTP setup -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --bg-primary: #0f172a;
@@ -150,7 +152,6 @@
             background: var(--bg-secondary);
             border-radius: 3px;
         }
-        /* 登录弹窗样式 */
         .login-modal .modal-content {
             background: var(--bg-card);
             border: 1px solid rgba(255,255,255,0.1);
@@ -171,7 +172,6 @@
             outline: none;
             border-color: var(--accent);
         }
-        /* 遮罩层禁用状态 */
         .disabled-overlay {
             position: relative;
         }
@@ -195,8 +195,49 @@
             z-index: 31;
             text-align: center;
         }
+        /* TOTP styles */
+        .totp-input {
+            letter-spacing: 0.5em;
+            font-size: 1.5rem;
+            text-align: center;
+            font-family: monospace;
+        }
+        .qr-container {
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            display: inline-block;
+        }
+        .backup-codes {
+            font-family: monospace;
+            letter-spacing: 0.1em;
+        }
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4b5563;
+        }
+        .step-dot.active {
+            background: #3b82f6;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+        }
+        .step-line {
+            width: 30px;
+            height: 2px;
+            background: #4b5563;
+        }
+        .step-line.active {
+            background: #3b82f6;
+        }
     </style>
-<base target="_blank">
 <base target="_blank">
 </head>
 <body class="min-h-screen">
@@ -204,21 +245,131 @@
 
     <!-- 登录验证弹窗 -->
     <div id="loginModal" class="fixed inset-0 z-50 hidden">
-        <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeLoginModal()"></div>
+        <div class="modal-overlay absolute inset-0 bg-black/60" onclick="if(!loginStepTOTP) closeLoginModal()"></div>
         <div class="relative min-h-screen flex items-center justify-center p-4">
             <div class="login-modal modal-content rounded-xl shadow-2xl w-full max-w-sm p-8 relative fade-in text-center">
+                <div class="step-indicator" id="loginStepIndicator">
+                    <div class="step-dot active" id="step1Dot"></div>
+                    <div class="step-line" id="stepLine"></div>
+                    <div class="step-dot" id="step2Dot"></div>
+                </div>
                 <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
                     <i class="fas fa-shield-alt text-white text-2xl"></i>
                 </div>
-                <h3 class="text-xl font-bold mb-2">访问验证</h3>
-                <p class="text-sm text-gray-400 mb-6">请输入访问密码以继续使用 DNS Manager</p>
-                <form onsubmit="handleLogin(event)">
-                    <input type="password" id="loginPassword" class="login-input w-full px-4 py-3 rounded-lg mb-4 text-center" placeholder="访问密码" autocomplete="off" autofocus>
-                    <button type="submit" id="loginBtn" class="btn-primary w-full py-3 rounded-lg font-medium transition">
-                        <span id="loginBtnText">进入系统</span>
-                    </button>
-                </form>
+                <div id="loginStep1">
+                    <h3 class="text-xl font-bold mb-2">访问验证</h3>
+                    <p class="text-sm text-gray-400 mb-6">请输入访问密码</p>
+                    <form onsubmit="handleLogin(event)">
+                        <input type="password" id="loginPassword" class="login-input w-full px-4 py-3 rounded-lg mb-4 text-center" placeholder="访问密码" autocomplete="off" autofocus>
+                        <button type="submit" id="loginBtn" class="btn-primary w-full py-3 rounded-lg font-medium transition">
+                            <span id="loginBtnText">下一步</span>
+                        </button>
+                    </form>
+                </div>
+                <div id="loginStep2" class="hidden">
+                    <h3 class="text-xl font-bold mb-2">双因素认证</h3>
+                    <p class="text-sm text-gray-400 mb-2">请输入 Authenticator 中的 6 位验证码</p>
+                    <p class="text-xs text-gray-500 mb-4" id="totpHint"></p>
+                    <form onsubmit="handleTOTPVerify(event)">
+                        <input type="text" id="totpCode" class="login-input w-full px-4 py-3 rounded-lg mb-4 text-center totp-input" 
+                               placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" autofocus>
+                        <button type="submit" id="totpBtn" class="btn-primary w-full py-3 rounded-lg font-medium transition">
+                            <span id="totpBtnText">验证并登录</span>
+                        </button>
+                    </form>
+                    <button onclick="showBackupCodeInput()" class="text-sm text-blue-400 hover:text-blue-300 mt-3 underline">使用备用码</button>
+                    <button onclick="backToPassword()" class="text-sm text-gray-500 hover:text-gray-400 mt-2 block w-full">&larr; 返回密码验证</button>
+                </div>
+                <div id="backupCodeStep" class="hidden">
+                    <h3 class="text-xl font-bold mb-2">备用码验证</h3>
+                    <p class="text-sm text-gray-400 mb-6">请输入未使用的备用码</p>
+                    <form onsubmit="handleBackupCode(event)">
+                        <input type="text" id="backupCodeInput" class="login-input w-full px-4 py-3 rounded-lg mb-4 text-center uppercase" 
+                               placeholder="XXXX" maxlength="4" autocomplete="off">
+                        <button type="submit" id="backupBtn" class="btn-primary w-full py-3 rounded-lg font-medium transition">
+                            <span id="backupBtnText">验证</span>
+                        </button>
+                    </form>
+                    <button onclick="backToTOTP()" class="text-sm text-gray-500 hover:text-gray-400 mt-2 block w-full">&larr; 返回验证码</button>
+                </div>
                 <div id="loginError" class="text-red-500 text-sm mt-4 hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOTP 设置弹窗 -->
+    <div id="totpSetupModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeTOTPSetupModal()"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="card rounded-xl shadow-2xl w-full max-w-md p-6 relative fade-in">
+                <button onclick="closeTOTPSetupModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div id="totpSetupStep1">
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-mobile-alt text-green-500 text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold">启用双因素认证</h3>
+                            <p class="text-xs text-gray-400">增强账户安全性</p>
+                        </div>
+                    </div>
+                    <div class="text-center mb-6">
+                        <div id="qrCodeContainer" class="qr-container mb-4"></div>
+                        <p class="text-sm text-gray-400 mb-2">使用 Authenticator 应用扫描上方二维码</p>
+                        <div class="bg-gray-800 rounded-lg p-3 mb-4">
+                            <p class="text-xs text-gray-500 mb-1">或手动输入密钥</p>
+                            <code id="totpSecretDisplay" class="text-sm text-green-400 break-all select-all"></code>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-900/30 border border-yellow-700/50 rounded-lg p-3 mb-4">
+                        <p class="text-xs text-yellow-200 mb-2"><i class="fas fa-exclamation-triangle mr-1"></i><strong>备用码（仅显示一次，请妥善保存）</strong></p>
+                        <div id="backupCodesDisplay" class="grid grid-cols-4 gap-2 text-center text-xs backup-codes text-yellow-300"></div>
+                    </div>
+                    <form onsubmit="confirmTOTPSetup(event)">
+                        <label class="block text-sm font-medium mb-2 text-gray-400">输入 Authenticator 中的 6 位验证码以确认</label>
+                        <input type="text" id="setupTOTPCode" class="login-input w-full px-4 py-3 rounded-lg mb-4 text-center totp-input" 
+                               placeholder="000000" maxlength="6" inputmode="numeric" required>
+                        <button type="submit" id="confirmTOTPBtn" class="btn-success w-full py-3 rounded-lg font-medium transition">
+                            <span id="confirmTOTPText">确认启用</span>
+                        </button>
+                    </form>
+                </div>
+                <div id="totpSetupSuccess" class="hidden text-center py-8">
+                    <div class="w-16 h-16 bg-green-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-check text-green-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">启用成功</h3>
+                    <p class="text-sm text-gray-400">双因素认证已激活</p>
+                    <button onclick="closeTOTPSetupModal()" class="btn-primary w-full py-2 rounded-lg mt-6">完成</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOTP 管理弹窗 -->
+    <div id="totpManageModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0 bg-black/60" onclick="closeTOTPManageModal()"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="card rounded-xl shadow-2xl w-full max-w-sm p-6 relative fade-in text-center">
+                <button onclick="closeTOTPManageModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-shield-alt text-blue-500 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">双因素认证</h3>
+                <p class="text-sm text-gray-400 mb-6" id="totpStatusText">状态：已启用</p>
+                <div id="totpManageActions"></div>
+                <div id="disableTOTPForm" class="hidden">
+                    <p class="text-sm text-gray-400 mb-4">输入访问密码以确认禁用</p>
+                    <input type="password" id="disableTOTPPassword" class="login-input w-full px-4 py-2 rounded-lg mb-4 text-center" placeholder="访问密码">
+                    <div class="flex space-x-3">
+                        <button onclick="cancelDisableTOTP()" class="flex-1 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
+                        <button onclick="confirmDisableTOTP()" class="flex-1 btn-danger py-2 rounded-lg transition">确认禁用</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -240,7 +391,6 @@
                         <p class="text-xs text-gray-400">配置 DNS OpenAPI 访问凭证</p>
                     </div>
                 </div>
-
                 <div class="space-y-4">
                     <div>
                         <div class="flex items-center justify-between mb-2">
@@ -261,7 +411,6 @@
                         <p class="text-xs text-gray-500 mt-1">通过 Edge Function 代理，自动处理 CORS</p>
                     </div>
                 </div>
-
                 <div class="mt-6 p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg">
                     <div class="flex items-start space-x-2">
                         <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
@@ -270,7 +419,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="mt-6 flex space-x-3">
                     <button onclick="closeApiConfigModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
                     <button onclick="saveConfig()" class="flex-1 btn-primary px-4 py-2 rounded-lg font-medium transition">
@@ -300,7 +448,10 @@
                     <i class="fas fa-key"></i>
                     <span class="hidden sm:inline">API配置</span>
                 </button>
-                <!-- 登录/退出按钮 -->
+                <button id="totpSettingsBtn" onclick="showTOTPManageModal()" class="hidden flex items-center space-x-2 px-3 py-2 rounded-lg transition text-sm font-medium bg-green-600/20 text-green-400 hover:bg-green-600/30" title="安全设置">
+                    <i class="fas fa-mobile-alt"></i>
+                    <span class="hidden sm:inline">2FA</span>
+                </button>
                 <button id="authBtn" onclick="toggleAuth()" class="flex items-center space-x-2 px-3 py-2 rounded-lg transition text-sm font-medium">
                     <i id="authIcon" class="fas fa-lock"></i>
                     <span id="authText">登录</span>
@@ -330,12 +481,10 @@
                             <i class="fas fa-sync-alt" id="refreshDomains"></i>
                         </button>
                     </div>
-
                     <div class="relative mb-4">
                         <input type="text" id="domainSearch" class="input-field w-full px-4 py-2 pl-10 rounded-lg text-sm" placeholder="搜索域名..." oninput="filterDomains()">
                         <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
                     </div>
-
                     <div id="domainList" class="space-y-2 max-h-96 overflow-y-auto">
                         <div class="text-center text-gray-500 py-8">
                             <i class="fas fa-inbox text-3xl mb-2"></i>
@@ -368,7 +517,6 @@
                             </button>
                         </div>
                     </div>
-
                     <div class="overflow-x-auto">
                         <table class="w-full text-left">
                             <thead>
@@ -405,17 +553,14 @@
                     </button>
                     <h3 id="modalTitle" class="text-xl font-bold mb-6">添加解析记录</h3>
                 </div>
-
                 <div class="px-6 modal-scroll">
                     <form id="recordForm" onsubmit="handleRecordSubmit(event)">
                         <input type="hidden" id="recordId">
-
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium mb-2 text-gray-400">域名</label>
                                 <input type="text" id="formDomain" class="input-field w-full px-4 py-2 rounded-lg bg-gray-800" readonly>
                             </div>
-
                             <div>
                                 <label class="block text-sm font-medium mb-2 text-gray-400">主机记录 <span class="text-red-500">*</span></label>
                                 <div class="flex items-center">
@@ -424,7 +569,6 @@
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">使用 @ 表示根域名</p>
                             </div>
-
                             <div>
                                 <label class="block text-sm font-medium mb-2 text-gray-400">记录类型 <span class="text-red-500">*</span></label>
                                 <select id="formType" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
@@ -436,18 +580,15 @@
                                     <option value="NS">NS - 名称服务器</option>
                                 </select>
                             </div>
-
                             <div>
                                 <label class="block text-sm font-medium mb-2 text-gray-400">记录值 <span class="text-red-500">*</span></label>
                                 <input type="text" id="formValue" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="1.2.3.4" required>
                             </div>
-
                             <div>
                                 <label class="block text-sm font-medium mb-2 text-gray-400">TTL (秒)</label>
                                 <input type="number" id="formTTL" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="600" min="60" step="1">
                                 <p class="text-xs text-gray-500 mt-1">默认 600 秒</p>
                             </div>
-
                             <div>
                                 <label class="block text-sm font-medium mb-2 text-gray-400">优先级 (MX 记录)</label>
                                 <input type="number" id="formPriority" class="input-field w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="10" min="0" max="65535">
@@ -455,7 +596,6 @@
                         </div>
                     </form>
                 </div>
-
                 <div class="p-6 pt-4 border-t border-gray-700/50 mt-4">
                     <div class="flex space-x-3">
                         <button type="button" onclick="closeModal()" class="flex-1 px-4 py-2 rounded-lg border border-gray-600 hover:bg-gray-700 transition">取消</button>
@@ -494,6 +634,10 @@
         let hasServerApiKey = false;
         let isAuthenticated = false;
         let hasAccessPassword = false;
+        let loginStepTOTP = false;
+        let tempToken = null;
+        let totpSetupToken = null;
+        let totpEnabled = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             loadConfig();
@@ -502,36 +646,43 @@
             checkAuthStatus();
         });
 
-        // 检查是否需要密码验证
-         async function checkServerConfig() {
-    try {
-        const response = await fetch('/api/client/dnsopenapi/domain_list', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: '{}'
-        });
-        if (response.status === 401) {
-            // 需要密码验证
-            hasAccessPassword = true;
-            updateAuthUI();
-            updateContentLock();
-        } else if (response.status !== 403) {
-            hasServerApiKey = true;
-            document.getElementById('envApiKeyBadge').classList.remove('hidden');
-            // 如果不需要密码，直接标记为已认证
-            if (response.ok) {
-                hasAccessPassword = false;
-                isAuthenticated = true;
-                updateAuthUI();
-                updateContentLock();
+        async function checkServerConfig() {
+            try {
+                const response = await fetch('/api/client/dnsopenapi/domain_list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                });
+                if (response.status === 401) {
+                    hasAccessPassword = true;
+                    updateAuthUI();
+                    updateContentLock();
+                    checkTOTPStatus();
+                } else if (response.status !== 403) {
+                    hasServerApiKey = true;
+                    document.getElementById('envApiKeyBadge').classList.remove('hidden');
+                    if (response.ok) {
+                        hasAccessPassword = false;
+                        isAuthenticated = true;
+                        updateAuthUI();
+                        updateContentLock();
+                    }
+                }
+            } catch (e) {
+                console.log('Server config check failed:', e);
             }
         }
-    } catch (e) {
-        console.log('Server config check failed:', e);
-    }
-}
-        
-        // 检查登录状态
+
+        async function checkTOTPStatus() {
+            try {
+                const res = await fetch('/api/auth/totp-status');
+                const data = await res.json();
+                totpEnabled = data.enabled;
+            } catch (e) {
+                console.log('TOTP status check failed:', e);
+            }
+        }
+
         function checkAuthStatus() {
             const cookie = document.cookie;
             const sessionMatch = cookie.match(/dns_session=([^;]+)/);
@@ -542,30 +693,31 @@
             updateContentLock();
         }
 
-        // 更新登录按钮状态
         function updateAuthUI() {
             const btn = document.getElementById('authBtn');
             const icon = document.getElementById('authIcon');
             const text = document.getElementById('authText');
-            
+            const totpBtn = document.getElementById('totpSettingsBtn');
+
             if (isAuthenticated) {
                 btn.className = 'flex items-center space-x-2 px-3 py-2 rounded-lg transition text-sm font-medium bg-green-600/20 text-green-400 hover:bg-green-600/30';
                 icon.className = 'fas fa-check-circle';
                 text.textContent = '已登录';
+                totpBtn.classList.remove('hidden');
             } else {
                 btn.className = 'flex items-center space-x-2 px-3 py-2 rounded-lg transition text-sm font-medium bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600/30';
                 icon.className = 'fas fa-lock';
                 text.textContent = '登录';
+                totpBtn.classList.add('hidden');
             }
         }
 
-        // 更新内容区域锁定状态
         function updateContentLock() {
             const domainSection = document.getElementById('domainSection');
             const recordsSection = document.getElementById('recordsSection');
             const domainLock = document.getElementById('domainLock');
             const recordsLock = document.getElementById('recordsLock');
-            
+
             if (!isAuthenticated && hasAccessPassword) {
                 domainSection.classList.add('disabled-overlay');
                 recordsSection.classList.add('disabled-overlay');
@@ -576,97 +728,382 @@
                 recordsSection.classList.remove('disabled-overlay');
                 domainLock.classList.add('hidden');
                 recordsLock.classList.add('hidden');
-                // 如果已登录且未加载域名，自动加载
                 if (isAuthenticated && domains.length === 0) {
                     loadDomains();
                 }
             }
         }
 
-        // 登录/退出切换
         function toggleAuth() {
             if (isAuthenticated) {
-                // 退出登录
                 logout();
             } else {
-                // 显示登录弹窗
                 showLoginModal();
             }
         }
 
         function showLoginModal() {
             document.getElementById('loginModal').classList.remove('hidden');
-            document.getElementById('loginPassword').value = '';
-            document.getElementById('loginError').classList.add('hidden');
+            resetLoginUI();
             setTimeout(() => document.getElementById('loginPassword').focus(), 100);
         }
 
+        function resetLoginUI() {
+            loginStepTOTP = false;
+            tempToken = null;
+            document.getElementById('loginStep1').classList.remove('hidden');
+            document.getElementById('loginStep2').classList.add('hidden');
+            document.getElementById('backupCodeStep').classList.add('hidden');
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('totpCode').value = '';
+            document.getElementById('backupCodeInput').value = '';
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('step1Dot').classList.add('active');
+            document.getElementById('step2Dot').classList.remove('active');
+            document.getElementById('stepLine').classList.remove('active');
+        }
+
         function closeLoginModal() {
+            if (loginStepTOTP) return;
             document.getElementById('loginModal').classList.add('hidden');
         }
 
         async function handleLogin(e) {
-    e.preventDefault();
-    const password = document.getElementById('loginPassword').value;
-    const errorDiv = document.getElementById('loginError');
-    const btn = document.getElementById('loginBtn');
-    const originalText = document.getElementById('loginBtnText').textContent;
-    
-    if (!password) return;
+            e.preventDefault();
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            const btn = document.getElementById('loginBtn');
+            const originalText = document.getElementById('loginBtnText').textContent;
 
-    btn.disabled = true;
-    document.getElementById('loginBtnText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
+            if (!password) return;
 
-    try {
-        const response = await fetch('/api/auth/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password })
-        });
+            btn.disabled = true;
+            document.getElementById('loginBtnText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
 
-        if (response.ok) {
-            const data = await response.json();
-            // 设置 Cookie - 与服务器返回的格式一致
-            document.cookie = 'dns_session=' + encodeURIComponent(data.token) + '; Path=/; Max-Age=86400; SameSite=Lax';
-            isAuthenticated = true;
-            hasAccessPassword = true; // 确保标记为需要密码
-            updateAuthUI();
-            updateContentLock(); // 内部已包含 domains.length === 0 时自动调用 loadDomains()
-            closeLoginModal();
-            showToast('登录成功', 'success');
-        } else {
-            const data = await response.json();
-            errorDiv.textContent = data.error || '密码错误，请重试';
-            errorDiv.classList.remove('hidden');
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    if (data.require_totp) {
+                        loginStepTOTP = true;
+                        tempToken = data.temp_token;
+                        showTOTPStep();
+                    } else {
+                        document.cookie = 'dns_session=' + encodeURIComponent(data.token) + '; Path=/; Max-Age=86400; SameSite=Lax';
+                        isAuthenticated = true;
+                        hasAccessPassword = true;
+                        totpEnabled = false;
+                        updateAuthUI();
+                        updateContentLock();
+                        closeLoginModal();
+                        showToast('登录成功', 'success');
+                    }
+                } else {
+                    errorDiv.textContent = data.error || '密码错误';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                errorDiv.textContent = '验证失败，请重试';
+                errorDiv.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                document.getElementById('loginBtnText').textContent = originalText;
+            }
         }
-    } catch (err) {
-        errorDiv.textContent = '验证失败，请重试';
-        errorDiv.classList.remove('hidden');
-    } finally {
-        btn.disabled = false;
-        document.getElementById('loginBtnText').textContent = originalText;
-    }
-}
-        
-       function logout() {
-    // 清除 Cookie - 必须与设置时的属性一致
-    document.cookie = 'dns_session=; Path=/; Max-Age=0; SameSite=Lax';
-    isAuthenticated = false;
-    domains = [];
-    records = [];
-    currentDomain = null;
-    updateAuthUI();
-    updateContentLock();
-    renderDomains();
-    renderRecords();
-    document.getElementById('currentDomain').textContent = '';
-    document.getElementById('btnAddRecord').disabled = true;
-    document.getElementById('btnAddRecord').classList.add('opacity-50', 'cursor-not-allowed');
-    document.getElementById('btnRefreshRecords').disabled = true;
-    document.getElementById('btnRefreshRecords').classList.add('opacity-50', 'cursor-not-allowed');
-    showToast('已退出登录', 'info');
-}
 
+        function showTOTPStep() {
+            document.getElementById('loginStep1').classList.add('hidden');
+            document.getElementById('loginStep2').classList.remove('hidden');
+            document.getElementById('step1Dot').classList.remove('active');
+            document.getElementById('step2Dot').classList.add('active');
+            document.getElementById('stepLine').classList.add('active');
+            document.getElementById('totpHint').textContent = '临时会话: ' + tempToken.slice(0, 8) + '...';
+            setTimeout(() => document.getElementById('totpCode').focus(), 100);
+        }
+
+        async function handleTOTPVerify(e) {
+            e.preventDefault();
+            const code = document.getElementById('totpCode').value.replace(/\s/g, '');
+            const errorDiv = document.getElementById('loginError');
+            const btn = document.getElementById('totpBtn');
+            const originalText = document.getElementById('totpBtnText').textContent;
+
+            if (!/^\d{6}$/.test(code)) {
+                errorDiv.textContent = '请输入 6 位数字验证码';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            document.getElementById('totpBtnText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
+
+            try {
+                const response = await fetch('/api/auth/verify-totp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ temp_token: tempToken, totp_code: code })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    document.cookie = 'dns_session=' + encodeURIComponent(data.token) + '; Path=/; Max-Age=86400; SameSite=Lax';
+                    isAuthenticated = true;
+                    hasAccessPassword = true;
+                    totpEnabled = true;
+                    updateAuthUI();
+                    updateContentLock();
+                    closeLoginModal();
+                    showToast('登录成功', 'success');
+                } else {
+                    errorDiv.textContent = data.error || '验证码错误';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                errorDiv.textContent = '验证失败，请重试';
+                errorDiv.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                document.getElementById('totpBtnText').textContent = originalText;
+            }
+        }
+
+        function showBackupCodeInput() {
+            document.getElementById('loginStep2').classList.add('hidden');
+            document.getElementById('backupCodeStep').classList.remove('hidden');
+            setTimeout(() => document.getElementById('backupCodeInput').focus(), 100);
+        }
+
+        function backToTOTP() {
+            document.getElementById('backupCodeStep').classList.add('hidden');
+            document.getElementById('loginStep2').classList.remove('hidden');
+            setTimeout(() => document.getElementById('totpCode').focus(), 100);
+        }
+
+        function backToPassword() {
+            resetLoginUI();
+            setTimeout(() => document.getElementById('loginPassword').focus(), 100);
+        }
+
+        async function handleBackupCode(e) {
+            e.preventDefault();
+            const code = document.getElementById('backupCodeInput').value.toUpperCase().replace(/\s/g, '');
+            const errorDiv = document.getElementById('loginError');
+            const btn = document.getElementById('backupBtn');
+            const originalText = document.getElementById('backupBtnText').textContent;
+
+            btn.disabled = true;
+            document.getElementById('backupBtnText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
+
+            try {
+                const response = await fetch('/api/auth/backup-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ temp_token: tempToken, backup_code: code })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    document.cookie = 'dns_session=' + encodeURIComponent(data.token) + '; Path=/; Max-Age=86400; SameSite=Lax';
+                    isAuthenticated = true;
+                    hasAccessPassword = true;
+                    totpEnabled = true;
+                    updateAuthUI();
+                    updateContentLock();
+                    closeLoginModal();
+                    showToast(data.warning || '登录成功', 'success');
+                } else {
+                    errorDiv.textContent = data.error || '备用码无效';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                errorDiv.textContent = '验证失败，请重试';
+                errorDiv.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                document.getElementById('backupBtnText').textContent = originalText;
+            }
+        }
+
+        function logout() {
+            document.cookie = 'dns_session=; Path=/; Max-Age=0; SameSite=Lax';
+            isAuthenticated = false;
+            totpEnabled = false;
+            domains = [];
+            records = [];
+            currentDomain = null;
+            updateAuthUI();
+            updateContentLock();
+            renderDomains();
+            renderRecords();
+            document.getElementById('currentDomain').textContent = '';
+            document.getElementById('btnAddRecord').disabled = true;
+            document.getElementById('btnAddRecord').classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('btnRefreshRecords').disabled = true;
+            document.getElementById('btnRefreshRecords').classList.add('opacity-50', 'cursor-not-allowed');
+            showToast('已退出登录', 'info');
+        }
+
+        // TOTP 设置
+        function showTOTPSetupModal() {
+            document.getElementById('totpSetupModal').classList.remove('hidden');
+            document.getElementById('totpSetupStep1').classList.remove('hidden');
+            document.getElementById('totpSetupSuccess').classList.add('hidden');
+            document.getElementById('setupTOTPCode').value = '';
+            generateTOTPSetup();
+        }
+
+        function closeTOTPSetupModal() {
+            document.getElementById('totpSetupModal').classList.add('hidden');
+            totpSetupToken = null;
+        }
+
+        async function generateTOTPSetup() {
+            const btn = document.getElementById('confirmTOTPBtn');
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/auth/setup-totp', { method: 'POST' });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showToast(data.error || '获取设置信息失败', 'error');
+                    closeTOTPSetupModal();
+                    return;
+                }
+
+                totpSetupToken = data.setup_token;
+                document.getElementById('totpSecretDisplay').textContent = data.secret;
+
+                const qrContainer = document.getElementById('qrCodeContainer');
+                qrContainer.innerHTML = '';
+                if (typeof QRCode !== 'undefined') {
+                    new QRCode(qrContainer, {
+                        text: data.otpauth_uri,
+                        width: 180,
+                        height: 180,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff'
+                    });
+                } else {
+                    qrContainer.innerHTML = '<div class="text-xs text-gray-500 p-4">请手动输入密钥</div>';
+                }
+
+                const codesContainer = document.getElementById('backupCodesDisplay');
+                codesContainer.innerHTML = data.backup_codes.map(c => '<div class="bg-gray-800 rounded p-1">' + c + '</div>').join('');
+
+                btn.disabled = false;
+            } catch (e) {
+                showToast('获取设置信息失败', 'error');
+                closeTOTPSetupModal();
+            }
+        }
+
+        async function confirmTOTPSetup(e) {
+            e.preventDefault();
+            const code = document.getElementById('setupTOTPCode').value.replace(/\s/g, '');
+            const btn = document.getElementById('confirmTOTPBtn');
+            const originalText = document.getElementById('confirmTOTPText').textContent;
+
+            if (!/^\d{6}$/.test(code)) {
+                showToast('请输入 6 位验证码', 'warning');
+                return;
+            }
+
+            btn.disabled = true;
+            document.getElementById('confirmTOTPText').innerHTML = '<div class="loading-spinner mx-auto"></div>';
+
+            try {
+                const res = await fetch('/api/auth/confirm-totp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ setup_token: totpSetupToken, totp_code: code })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    totpEnabled = true;
+                    document.getElementById('totpSetupStep1').classList.add('hidden');
+                    document.getElementById('totpSetupSuccess').classList.remove('hidden');
+                    showToast('双因素认证已启用', 'success');
+                } else {
+                    showToast(data.error || '验证失败', 'error');
+                    btn.disabled = false;
+                    document.getElementById('confirmTOTPText').textContent = originalText;
+                }
+            } catch (e) {
+                showToast('验证失败', 'error');
+                btn.disabled = false;
+                document.getElementById('confirmTOTPText').textContent = originalText;
+            }
+        }
+
+        // TOTP 管理
+        function showTOTPManageModal() {
+            document.getElementById('totpManageModal').classList.remove('hidden');
+            document.getElementById('totpStatusText').textContent = totpEnabled ? '状态：已启用' : '状态：未启用';
+
+            const actions = document.getElementById('totpManageActions');
+            if (totpEnabled) {
+                actions.innerHTML = '<button onclick="showDisableTOTP()" class="w-full py-3 rounded-lg border border-red-600 text-red-400 hover:bg-red-900/20 transition mb-3"><i class="fas fa-times-circle mr-2"></i>禁用 TOTP</button>';
+            } else {
+                actions.innerHTML = '<button onclick="showTOTPSetupModal(); closeTOTPManageModal();" class="w-full btn-success py-3 rounded-lg transition mb-3"><i class="fas fa-plus-circle mr-2"></i>启用 TOTP</button>';
+            }
+            document.getElementById('disableTOTPForm').classList.add('hidden');
+        }
+
+        function closeTOTPManageModal() {
+            document.getElementById('totpManageModal').classList.add('hidden');
+        }
+
+        function showDisableTOTP() {
+            document.getElementById('totpManageActions').classList.add('hidden');
+            document.getElementById('disableTOTPForm').classList.remove('hidden');
+            document.getElementById('disableTOTPPassword').value = '';
+        }
+
+        function cancelDisableTOTP() {
+            document.getElementById('disableTOTPForm').classList.add('hidden');
+            document.getElementById('totpManageActions').classList.remove('hidden');
+        }
+
+        async function confirmDisableTOTP() {
+            const password = document.getElementById('disableTOTPPassword').value;
+            if (!password) {
+                showToast('请输入密码', 'warning');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/disable-totp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    totpEnabled = false;
+                    showToast('TOTP 已禁用', 'success');
+                    closeTOTPManageModal();
+                } else {
+                    showToast(data.error || '禁用失败', 'error');
+                }
+            } catch (e) {
+                showToast('禁用失败', 'error');
+            }
+        }
+
+        // Theme
         function checkTheme() {
             const savedTheme = localStorage.getItem('theme') || 'dark';
             if (savedTheme === 'light') {
@@ -687,6 +1124,7 @@
             }
         }
 
+        // Config
         function saveConfig() {
             const apiKey = document.getElementById('apiKey').value.trim();
             if (!apiKey && !hasServerApiKey) {
@@ -730,6 +1168,7 @@
             }
         }
 
+        // API Call
         async function apiCall(endpoint, data = {}) {
             const apiKey = localStorage.getItem('dns_api_key');
             const headers = { 'Content-Type': 'application/json' };
@@ -744,15 +1183,17 @@
                 });
                 if (response.status === 429) throw new Error('请求过于频繁，请稍后再试 (429)');
                 if (response.status === 401 || response.status === 403) {
-                    // 认证失败，可能是密码过期
                     isAuthenticated = false;
                     updateAuthUI();
                     updateContentLock();
+                    if (response.status === 401) {
+                        checkTOTPStatus();
+                    }
                     throw new Error('认证失败，请重新登录');
                 }
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    throw new Error('HTTP ' + response.status + ': ' + errorText);
                 }
                 return await response.json();
             } catch (error) {
@@ -763,6 +1204,7 @@
             }
         }
 
+        // Domains
         async function loadDomains() {
             if (!isAuthenticated && hasAccessPassword) {
                 showToast('请先登录', 'warning');
@@ -778,7 +1220,7 @@
                 if (domains.length === 0) {
                     showToast('未找到域名，请检查 API 权限', 'warning');
                 } else {
-                    showToast(`已加载 ${domains.length} 个域名`, 'success');
+                    showToast('已加载 ' + domains.length + ' 个域名', 'success');
                 }
                 renderDomains();
                 setStatus('ready', '就绪');
@@ -809,20 +1251,19 @@
                 return domainName.toLowerCase().includes(searchTerm);
             });
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="text-center text-gray-500 py-8"><i class="fas fa-search text-2xl mb-2"></i><p class="text-sm">未找到匹配的域名</p></div>`;
+                container.innerHTML = '<div class="text-center text-gray-500 py-8"><i class="fas fa-search text-2xl mb-2"></i><p class="text-sm">未找到匹配的域名</p></div>';
                 return;
             }
             container.innerHTML = filtered.map((domain) => {
                 const domainName = domain.domain || '';
                 const isActive = currentDomain === domainName;
-                return `
-                    <div onclick="selectDomain('${domainName}')" class="record-row p-3 rounded-lg cursor-pointer flex justify-between items-center ${isActive ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-gray-700/50'}">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-full bg-blue-900/50 flex items-center justify-center"><i class="fas fa-globe text-blue-400 text-xs"></i></div>
-                            <div><p class="font-medium text-sm">${domainName}</p><p class="text-xs text-gray-500">点击管理解析</p></div>
-                        </div>
-                        ${isActive ? '<i class="fas fa-chevron-right text-blue-500"></i>' : ''}
-                    </div>`;
+                return '<div onclick="selectDomain('' + domainName + '')" class="record-row p-3 rounded-lg cursor-pointer flex justify-between items-center ' + (isActive ? 'bg-blue-600/20 border border-blue-500/50' : 'hover:bg-gray-700/50') + '">' +
+                    '<div class="flex items-center space-x-3">' +
+                    '<div class="w-8 h-8 rounded-full bg-blue-900/50 flex items-center justify-center"><i class="fas fa-globe text-blue-400 text-xs"></i></div>' +
+                    '<div><p class="font-medium text-sm">' + domainName + '</p><p class="text-xs text-gray-500">点击管理解析</p></div>' +
+                    '</div>' +
+                    (isActive ? '<i class="fas fa-chevron-right text-blue-500"></i>' : '') +
+                    '</div>';
             }).join('');
         }
 
@@ -834,7 +1275,7 @@
                 return;
             }
             currentDomain = domain;
-            document.getElementById('currentDomain').textContent = `- ${domain}`;
+            document.getElementById('currentDomain').textContent = '- ' + domain;
             document.getElementById('btnAddRecord').disabled = false;
             document.getElementById('btnAddRecord').classList.remove('opacity-50', 'cursor-not-allowed');
             document.getElementById('btnRefreshRecords').disabled = false;
@@ -864,29 +1305,26 @@
         function renderRecords() {
             const tbody = document.getElementById('recordsTable');
             if (records.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-gray-500"><i class="fas fa-inbox text-3xl mb-2"></i><p>该域名暂无解析记录</p><button onclick="showCreateModal()" class="mt-4 text-blue-500 hover:text-blue-400 text-sm"><i class="fas fa-plus mr-1"></i>添加第一条记录</button></td></tr>`;
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-gray-500"><i class="fas fa-inbox text-3xl mb-2"></i><p>该域名暂无解析记录</p><button onclick="showCreateModal()" class="mt-4 text-blue-500 hover:text-blue-400 text-sm"><i class="fas fa-plus mr-1"></i>添加第一条记录</button></td></tr>';
                 return;
             }
             tbody.innerHTML = records.map(record => {
                 const type = (record.type || '').toUpperCase();
-                const typeClass = `type-${type.toLowerCase()}`;
+                const typeClass = 'type-' + type.toLowerCase();
                 const host = record.host || record.name || record.subdomain || '@';
                 const value = record.value || record.content || record.address || record.data || record.target || '-';
                 const ttl = record.ttl || record.TTL || '-';
                 const id = record.id || record.record_id || 0;
-                return `
-                    <tr class="record-row border-b border-gray-700/50">
-                        <td class="py-4 pr-4 font-medium">${host}</td>
-                        <td class="py-4 pr-4"><span class="type-badge ${typeClass}">${type || '?'}</span></td>
-                        <td class="py-4 pr-4 text-sm text-gray-300 max-w-xs truncate" title="${value}">${value}</td>
-                        <td class="py-4 pr-4 text-sm text-gray-400">${ttl}</td>
-                        <td class="py-4 text-right">
-                            <div class="flex justify-end space-x-2">
-                                <button onclick="editRecord(${id})" class="p-2 rounded-lg hover:bg-blue-900/30 text-blue-400 transition" title="编辑"><i class="fas fa-edit"></i></button>
-                                <button onclick="deleteRecord(${id})" class="p-2 rounded-lg hover:bg-red-900/30 text-red-400 transition" title="删除"><i class="fas fa-trash-alt"></i></button>
-                            </div>
-                        </td>
-                    </tr>`;
+                return '<tr class="record-row border-b border-gray-700/50">' +
+                    '<td class="py-4 pr-4 font-medium">' + host + '</td>' +
+                    '<td class="py-4 pr-4"><span class="type-badge ' + typeClass + '">' + (type || '?') + '</span></td>' +
+                    '<td class="py-4 pr-4 text-sm text-gray-300 max-w-xs truncate" title="' + value + '">' + value + '</td>' +
+                    '<td class="py-4 pr-4 text-sm text-gray-400">' + ttl + '</td>' +
+                    '<td class="py-4 text-right">' +
+                    '<div class="flex justify-end space-x-2">' +
+                    '<button onclick="editRecord(' + id + ')" class="p-2 rounded-lg hover:bg-blue-900/30 text-blue-400 transition" title="编辑"><i class="fas fa-edit"></i></button>' +
+                    '<button onclick="deleteRecord(' + id + ')" class="p-2 rounded-lg hover:bg-red-900/30 text-red-400 transition" title="删除"><i class="fas fa-trash-alt"></i></button>' +
+                    '</div></td></tr>';
             }).join('');
         }
 
@@ -906,10 +1344,6 @@
             document.getElementById('formTTL').value = '600';
             document.getElementById('recordModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            setTimeout(() => {
-                const modalContent = document.querySelector('.modal-form-content');
-                if (modalContent) modalContent.scrollTop = 0;
-            }, 10);
         }
 
         function editRecord(id) {
@@ -932,17 +1366,11 @@
             document.getElementById('formPriority').value = record.priority || record.mx_priority || record.Priority || '';
             document.getElementById('recordModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            setTimeout(() => {
-                const modalContent = document.querySelector('.modal-form-content');
-                if (modalContent) modalContent.scrollTop = 0;
-            }, 10);
         }
 
         function closeModal() { 
             document.getElementById('recordModal').classList.add('hidden'); 
             document.body.style.overflow = '';
-            const modalContent = document.querySelector('.modal-form-content');
-            if (modalContent) modalContent.scrollTop = 0;
         }
 
         async function handleRecordSubmit(e) {
@@ -988,7 +1416,7 @@
             deleteTargetId = id; 
             document.getElementById('deleteModal').classList.remove('hidden'); 
         }
-        
+
         function closeDeleteModal() { 
             document.getElementById('deleteModal').classList.add('hidden'); 
             deleteTargetId = null; 
@@ -1017,8 +1445,8 @@
             const toast = document.createElement('div');
             const colors = { success: 'bg-green-600', error: 'bg-red-600', warning: 'bg-yellow-600', info: 'bg-blue-600' };
             const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-circle', info: 'fa-info-circle' };
-            toast.className = `toast ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3 min-w-[300px]`;
-            toast.innerHTML = `<i class="fas ${icons[type]}"></i><span class="font-medium">${message}</span>`;
+            toast.className = 'toast ' + colors[type] + ' text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3 min-w-[300px]';
+            toast.innerHTML = '<i class="fas ' + icons[type] + '"></i><span class="font-medium">' + message + '</span>';
             container.appendChild(toast);
             setTimeout(() => {
                 toast.style.opacity = '0';
@@ -1034,6 +1462,8 @@
                 closeDeleteModal(); 
                 closeLoginModal(); 
                 closeApiConfigModal();
+                closeTOTPSetupModal();
+                closeTOTPManageModal();
             }
         });
     </script>
